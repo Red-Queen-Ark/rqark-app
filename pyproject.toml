@@ -1,0 +1,25 @@
+[project]
+name = "rqark-app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "rqark-core>=0.1.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rqark_app"]
+
+[[tool.uv.index]]
+name = "gitea"
+url = "https://gitea.carhyme.top/api/packages/RedQueenArk/pypi/simple"
+publish-url = "https://gitea.carhyme.top/api/packages/RedQueenArk/pypi"
+explicit = true
+
+[tool.uv.sources]
+rqark-core = { index = "gitea" }
