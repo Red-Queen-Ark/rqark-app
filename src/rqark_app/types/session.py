@@ -1,0 +1,16 @@
+from datetime import datetime
+from rqark_core.types.chat import Message
+from uuid import uuid4
+
+class ChatMessage:
+    def __init__(self, message: Message):
+        self.uuid = str(uuid4())
+        self.datetime: str = datetime.now().isoformat()
+        self.message: Message = message
+    
+    def to_dict(self):
+        return {
+            'uuid': self.uuid,
+            'datetime': self.datetime,
+            **self.message.to_dict()
+        }
