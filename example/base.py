@@ -13,7 +13,7 @@ app = AgentApp( [provider], agents)
 
 async def main():
     print('Run Base Test Start')
-    messages = await app.chat('你好')
+    messages = await app.chat('你係邊個?')
     print('Run Base Test End')
 
 if __name__ == "__main__":
