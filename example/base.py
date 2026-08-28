@@ -12,8 +12,9 @@ agents = [
 app = AgentApp( [provider], agents)
 
 async def main():
+    print('Run Base Test Start')
     messages = await app.chat('你好')
-    print(messages)
+    print('Run Base Test End')
 
 if __name__ == "__main__":
     asyncio.run(main())
