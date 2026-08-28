@@ -1,14 +1,12 @@
 import asyncio
 from model import MODEL_NAME
 from rqark_app.app import AgentApp, Provider
-from rqark_app.agent.agents import AgentHoliday, Diana, Wednesday
+from rqark_app.agent.agents import Wednesday
 
-provider = Provider(MODEL_NAME, 'api_key', 'http://127.0.0.1:8080', 0, combine=True)
+provider = Provider(MODEL_NAME, 'api_key', 'http://127.0.0.1:8080', 0, combine=True, thinking='disabled')
 
 agents = [
     Wednesday(),
-    AgentHoliday(), 
-    Diana(), 
 ]
 
 app = AgentApp( [provider], agents)
