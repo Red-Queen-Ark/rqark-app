@@ -1,6 +1,7 @@
 from collections.abc import Sequence
+
 from rqark_app.types.agent import BaseAgent
-from rqark_core.types.provider import Provider
+
 
 class AgentManager:
     def __init__(self, agents: Sequence[BaseAgent]):

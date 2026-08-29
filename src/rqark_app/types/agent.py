@@ -1,6 +1,8 @@
 from collections.abc import Sequence
+
 from rqark_core.types.prompt import BasePrompt
 from rqark_core.types.tool import BaseTool
+
 
 class BaseAgent:
     name: str

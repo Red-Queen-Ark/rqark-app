@@ -1,5 +1,6 @@
 from rqark_core.types.provider import Provider
 
+
 class ProviderManager:
     def __init__(self, providers: list[Provider]):
         self.providers: list[Provider] = sorted(providers, key=lambda p: p.priority)

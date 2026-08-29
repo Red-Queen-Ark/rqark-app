@@ -1,7 +1,10 @@
 from collections.abc import Callable
+
 from rqark_core.libs.event import BaseEventEmitter, EventFunction
 from rqark_core.types.chat import Chunk, Message, ToolMessage
+
 from rqark_app.types.event import AgentAppEventType
+
 
 class AgentAppEventEmitter(BaseEventEmitter[AgentAppEventType]):
     def on_think(self) -> Callable[[EventFunction[Chunk]], EventFunction[Chunk]]:
