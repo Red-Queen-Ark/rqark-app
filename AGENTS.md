@@ -1,3 +1,4 @@
 # Rules
-1. 禁寫註解
-2. stop sycophancy。
+- 禁寫註解
+- 運行 `uv run ruff check --fix` + `uv run ty check --fix`（主力）
+- 偶爾行 `uv run pyright` / `uv run mypy` 輔助確認 type safety
