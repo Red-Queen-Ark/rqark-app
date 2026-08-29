@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from rqark_core.types.chat import Message
+from rqark_core.types.tool import PlanItem
 
 
 class ChatMessage:
@@ -16,3 +17,10 @@ class ChatMessage:
             'datetime': self.datetime,
             **self.message.to_dict()
         }
+
+
+class Session:
+    uuid: str
+    title: str = ''
+    plan_items: list[PlanItem] = []
+    chats: list[ChatMessage] = []
