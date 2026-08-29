@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "rqark-core==0.1.6",
+    "rqark-core==0.1.7",
 ]
 
 [build-system]
