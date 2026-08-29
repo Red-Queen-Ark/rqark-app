@@ -1,35 +1,49 @@
 from rqark_core.types.provider import Provider
+
 from rqark_app.provider.manager import ProviderManager
 
-providers = [
-    Provider('', '', '', 1, name='p1'),
-    Provider('', '', '', 2, name='p2'),
-    Provider('', '', '', 4, name='p3'),
-    Provider('', '', '', 3, name='p4'),
-]
-provider_mgr = ProviderManager(providers)
 
-# INIT INFO
-assert provider_mgr.provider.name == 'p1'
-
-# Sort List
-assert provider_mgr.providers[2].name == 'p4'
-
-# Auto Switch Provider
-provider_mgr.report_failure()
-assert provider_mgr.provider.name == 'p1'
-
-provider_mgr.report_failure()
-provider_mgr.report_failure()
-assert provider_mgr.provider.name == 'p2'
-
-# User Switch Provider
-provider_mgr.switch_to(0)
-assert provider_mgr.provider.name == 'p1'
-
-provider_mgr.switch_to(4)
-assert provider_mgr.provider.name == 'p1'
+def make_manager() -> ProviderManager:
+    providers = [Provider('', '', '', 1, name='p1'), Provider('', '', '', 2, name='p2'), Provider('', '', '', 4, name='p3'), Provider('', '', '', 3, name='p4')]
+    return ProviderManager(providers)
 
 
-provider_mgr.switch_to(1)
-assert provider_mgr.provider.name == 'p2'
+def test_initial_provider_is_lowest_priority():
+    assert make_manager().provider.name == 'p1'
+
+
+def test_providers_sorted_by_priority():
+    mgr = make_manager()
+    assert mgr.providers[2].name == 'p4'
+
+
+def test_report_failure_does_not_switch_before_max_retries():
+    mgr = make_manager()
+    mgr.report_failure()
+    assert mgr.provider.name == 'p1'
+
+
+def test_report_failure_switches_after_max_retries():
+    mgr = make_manager()
+    mgr.report_failure()
+    mgr.report_failure()
+    mgr.report_failure()
+    assert mgr.provider.name == 'p2'
+
+
+def test_switch_to_current_index_keeps_provider():
+    mgr = make_manager()
+    assert mgr.switch_to(0) is True
+    assert mgr.provider.name == 'p1'
+
+
+def test_switch_to_out_of_range_is_rejected():
+    mgr = make_manager()
+    assert mgr.switch_to(4) is False
+    assert mgr.provider.name == 'p1'
+
+
+def test_switch_to_valid_index_changes_provider():
+    mgr = make_manager()
+    assert mgr.switch_to(1) is True
+    assert mgr.provider.name == 'p2'
