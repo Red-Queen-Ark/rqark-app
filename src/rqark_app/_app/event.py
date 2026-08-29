@@ -2,9 +2,8 @@ from collections.abc import Callable
 
 from rqark_core.libs.event import BaseEventEmitter, EventFunction
 from rqark_core.types.chat import Chunk, Message, ToolMessage
-
 from rqark_app.types.event import AgentAppEventType
-
+from rqark_core.types.tool import PlanItem
 
 class AgentAppEventEmitter(BaseEventEmitter[AgentAppEventType]):
     def on_think(self) -> Callable[[EventFunction[Chunk]], EventFunction[Chunk]]:
@@ -25,20 +24,24 @@ class AgentAppEventEmitter(BaseEventEmitter[AgentAppEventType]):
     def on_message(self) -> Callable[[EventFunction[Message]], EventFunction[Message]]:
         return self._on("message")
 
-    async def _emit_think(self, chunk: Chunk) -> None:
-        await self._emit("think", chunk)
+    def on_plan(self) -> Callable[[EventFunction[PlanItem]], EventFunction[PlanItem]]:
+        return self._on("plan")
 
-    async def _emit_content(self, chunk: Chunk) -> None:
-        await self._emit("content", chunk)
-
-    async def _emit_tool_calls(self, chunk: Chunk) -> None:
-        await self._emit("tool_calls", chunk)
-
-    async def _emit_tool_result(self, tool_msg: ToolMessage) -> None:
-        await self._emit("tool_result", tool_msg)
-
-    async def _emit_error(self, chunk: Chunk) -> None:
-        await self._emit("error", chunk)
-
-    async def _emit_message(self, message: Message) -> None:
-        await self._emit("message", message)
+    async def handle_chunk_event(self, chunk: Chunk):
+        if chunk.type == 'reasoning_content':
+            await self._emit('think', chunk)
+        elif chunk.type == 'content':
+            await self._emit('content', chunk)
+        elif chunk.type == 'tool_calls' and isinstance(chunk.content, list):
+            for call in chunk.content:
+                print(call.name, call.arguments)
+        elif chunk.type == 'tool_result' and isinstance(chunk.content, ToolMessage):
+            await self._emit('tool_result', chunk)
+        elif chunk.type == 'error':
+            await self._emit('error', chunk)
+    
+    async def hendle_message_event(self, message: Message):
+        await self._emit('message', message)
+        
+    async def handle_plan(self, plan_items: PlanItem):
+        await self._emit('plan', plan_items)
