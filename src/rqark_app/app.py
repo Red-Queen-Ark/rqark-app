@@ -38,7 +38,7 @@ class AgentApp(AgentAppEventEmitter):
         session = await self.session_mgr.get(session_id)
         if session is None:
             return None
-        core = AgentCore('Gen Title')
+        core = AgentCore('GenTitle')
         provider = self.provider_mgr.provider
         for _ in range(3):
             new_messages, error = await core.chat(provider, [GEN_TITLE_PROMPT, UserMessage(content)], [], [])
