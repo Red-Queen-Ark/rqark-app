@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
@@ -12,7 +13,7 @@ from rqark_app.app import AgentApp
 from rqark_app.session.manager import SessionManager
 from rqark_app.session.storage import JSONLStorage
 from rqark_app.types.agent import BaseAgent
-from rqark_app.types.session import Session
+from rqark_app.types.session import Session, parse_dt
 
 
 class TestAgent(BaseAgent):
@@ -148,6 +149,8 @@ async def test_jsonl_storage_roundtrip(tmp_path):
     s = loaded[0]
     assert s.uuid == 's1'
     assert s.title == 't1'
+    assert s.created_at == session.created_at
+    assert s.created_at.utcoffset() == timedelta(0)
     assert s.history[0].content == 'hi'
     assert isinstance(s.history[1], AssistantMessage)
     assert s.history[1].tool_calls[0].id == 'c1'
@@ -201,6 +204,11 @@ async def test_set_plan_ignores_unknown_agent(tmp_path):
     result = await mgr.set_plan('random-uuid', [PlanItem('p1', 'do stuff', 'pending')])
     assert result is None
     assert mgr.sessions_map['abc'].plan_items == []
+
+
+def test_parse_dt_aware_normalizes_to_utc():
+    dt = parse_dt('2026-01-01T08:00:00+08:00')
+    assert dt == datetime(2026, 1, 1, 0, 0, tzinfo=timezone.utc)
 
 
 async def test_chat_saves_snapshot_on_terminal_error(fake_core, tmp_path):
