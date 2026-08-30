@@ -34,10 +34,10 @@ class AgentApp(AgentAppEventEmitter):
         if session is not None:
             await self.session_mgr.save(session.uuid)
 
-    async def gen_title(self, session_id: str, content: str):
+    async def gen_title(self, session_id: str, content: str) -> Session | None:
         session = await self.session_mgr.get(session_id)
         if session is None:
-            return
+            return None
         core = AgentCore()
         provider = self.provider_mgr.provider
         for _ in range(3):
@@ -45,8 +45,9 @@ class AgentApp(AgentAppEventEmitter):
             if error is None:
                 session.title = new_messages[-1].content
                 await self.session_mgr.save(session.uuid)
+        return session
     
-    async def chat(self, content: str, agent: BaseAgent, session_id: str | None = None, path: tuple[str, ...] = ()) -> Sequence[Message]:
+    async def chat(self, content: str, agent: BaseAgent, session_id: str | None = None, path: tuple[str, ...] = ()) -> Session:
         session = await self.session_mgr.get_or_create(session_id) if session_id else await self.session_mgr.create()
         core = AgentCore(f'{agent.name}:{session.uuid}', path=path)
         user_msg = UserMessage(content)
@@ -55,7 +56,7 @@ class AgentApp(AgentAppEventEmitter):
         history = [*session.history, user_msg]
         return await self._loop(session, core, agent, history)
 
-    async def _loop(self, session: Session, core: AgentCore, agent: BaseAgent, history: list[Message]):
+    async def _loop(self, session: Session, core: AgentCore, agent: BaseAgent, history: list[Message]) -> Session:
         while True:
             provider = self.provider_mgr.provider
             new_messages, error = await core.chat(provider, history, agent.prompts, agent.tools)
@@ -63,7 +64,7 @@ class AgentApp(AgentAppEventEmitter):
             session.history = history
             await self.session_mgr.save(session.uuid)
             if error is None:
-                return new_messages
+                return session
             if not isinstance(error, APIError):
                 raise error
             self.provider_mgr.report_failure()
