@@ -15,7 +15,7 @@ from rqark_app.session.storage import SessionStorage
 from rqark_app.types.agent import BaseAgent
 from rqark_app.types.event import ProviderSwitch
 from rqark_app.types.session import Session
-
+from rqark_app.libs.title import GEN_TITLE_PROMPT
 
 class AgentApp(AgentAppEventEmitter):
     def __init__(self, providers: list[Provider], storage: SessionStorage | None = None):
@@ -34,12 +34,24 @@ class AgentApp(AgentAppEventEmitter):
         if session is not None:
             await self.session_mgr.save(session.uuid)
 
+    async def gen_title(self, session_id: str, content: str):
+        session = await self.session_mgr.get(session_id)
+        if session is None:
+            return
+        core = AgentCore()
+        provider = self.provider_mgr.provider
+        for _ in range(3):
+            new_messages, error = await core.chat(provider, [GEN_TITLE_PROMPT, UserMessage(content)], [], [])
+            if error is None:
+                session.title = new_messages[-1].content
+                await self.session_mgr.save(session.uuid)
+    
     async def chat(self, content: str, agent: BaseAgent, session_id: str | None = None, path: tuple[str, ...] = ()) -> Sequence[Message]:
         session = await self.session_mgr.get_or_create(session_id) if session_id else await self.session_mgr.create()
         core = AgentCore(f'{agent.name}:{session.uuid}', path=path)
-        self._connect_event(core)
         user_msg = UserMessage(content)
         await self._emit('message', AgentPayload(core.agent_id, core.path, user_msg))
+        self._connect_event(core)
         history = [*session.history, user_msg]
         return await self._loop(session, core, agent, history)
 
