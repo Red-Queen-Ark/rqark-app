@@ -5,7 +5,7 @@ from rqark_core.types.chat import Chunk, ToolMessage
 from rqark_core.types.event import AgentPayload
 
 from rqark_app.agent.agents import Wednesday
-from rqark_app.app import AgentApp, Provider
+from rqark_app.app import AgentApp, Provider, ProviderSwitch
 
 provider = Provider(MODEL_NAME, 'api_key', 'http://127.0.0.1:8080', 0, combine=True, thinking='disabled')
 
@@ -34,6 +34,11 @@ async def tool_result(ev: AgentPayload[ToolMessage]):
 
 @app.on_error()
 async def has_error(ev: AgentPayload[Chunk]):
+    print(ev)
+
+
+@app.on_provider_switched()
+async def switch_provider(ev: AgentPayload[ProviderSwitch]):
     print(ev)
 
 
