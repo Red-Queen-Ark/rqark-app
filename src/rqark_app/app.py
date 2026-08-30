@@ -38,13 +38,16 @@ class AgentApp(AgentAppEventEmitter):
         session = await self.session_mgr.get(session_id)
         if session is None:
             return None
-        core = AgentCore()
+        core = AgentCore('Gen Title')
         provider = self.provider_mgr.provider
         for _ in range(3):
             new_messages, error = await core.chat(provider, [GEN_TITLE_PROMPT, UserMessage(content)], [], [])
             if error is None:
                 session.title = new_messages[-1].content
                 await self.session_mgr.save(session.uuid)
+            else:
+                await self.report_failure(core, provider)
+                await asyncio.sleep(1)
         return session
     
     async def chat(self, content: str, agent: BaseAgent, session_id: str | None = None, path: tuple[str, ...] = ()) -> Session:
@@ -67,7 +70,10 @@ class AgentApp(AgentAppEventEmitter):
                 return session
             if not isinstance(error, APIError):
                 raise error
-            self.provider_mgr.report_failure()
-            if self.provider_mgr.provider is not provider:
-                await self._emit('provider_switched', AgentPayload(core.agent_id, core.path, ProviderSwitch(old=provider, new=self.provider_mgr.provider)))
+            await self.report_failure(core, provider)
             await asyncio.sleep(1)
+    
+    async def report_failure(self, core: AgentCore, provider: Provider):
+        self.provider_mgr.report_failure()
+        if self.provider_mgr.provider is not provider:
+            await self._emit('provider_switched', AgentPayload(core.agent_id, core.path, ProviderSwitch(old=provider, new=self.provider_mgr.provider)))
