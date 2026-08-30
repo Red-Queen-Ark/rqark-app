@@ -10,13 +10,13 @@ class SessionStorage(ABC):
     async def create(self, session: Session) -> None: ...
 
     @abstractmethod
-    async def update(self, session: Session) -> None: ...
+    async def save(self, session: Session) -> None: ...
 
     @abstractmethod
     async def load(self) -> list[Session]: ...
 
     @abstractmethod
-    async def delete(self, session_id: str) -> None: ...
+    async def delete(self, session_id: str) -> bool: ...
 
 
 class JSONLStorage(SessionStorage):
@@ -30,7 +30,7 @@ class JSONLStorage(SessionStorage):
         self.path.mkdir(parents=True, exist_ok=True)
         self._write_file(session)
 
-    async def update(self, session: Session) -> None:
+    async def save(self, session: Session) -> None:
         self._write_file(session)
 
     async def load(self) -> list[Session]:
@@ -42,18 +42,21 @@ class JSONLStorage(SessionStorage):
             if not lines:
                 continue
             session = Session.from_dict(json.loads(lines[0]))
-            for line in lines[1:]:
-                session.history.append(message_from_dict(json.loads(line)))
+            session.history = [message_from_dict(json.loads(line)) for line in lines[1:]]
             sessions.append(session)
         return sessions
 
-    async def delete(self, session_id: str) -> None:
-        self._file_path(session_id).unlink(missing_ok=True)
+    async def delete(self, session_id: str) -> bool:
+        file_path = self._file_path(session_id)
+        if not file_path.exists():
+            return False
+        file_path.unlink()
+        return True
 
     def _write_file(self, session: Session) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
         data = session.to_dict()
-        data.pop('history')
+        history = data.pop('history')
         lines = [json.dumps(data, ensure_ascii=False)]
-        lines.extend(json.dumps(m.to_dict(), ensure_ascii=False) for m in session.history)
+        lines.extend(json.dumps(m, ensure_ascii=False) for m in history)
         self._file_path(session.uuid).write_text('\n'.join(lines) + '\n', encoding='utf-8')

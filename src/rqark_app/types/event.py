@@ -1,3 +1,12 @@
+from dataclasses import dataclass
 from typing import Literal
 
-type AgentAppEventType = Literal['think', 'content', 'tool_calls', 'tool_result', 'error', 'message', 'plan']
+from rqark_core.types.provider import Provider
+
+type AgentAppEventType = Literal['think', 'content', 'tool_calls', 'tool_result', 'error', 'message', 'plan', 'provider_switched']
+
+
+@dataclass
+class ProviderSwitch:
+    old: Provider
+    new: Provider
