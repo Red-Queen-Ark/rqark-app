@@ -211,6 +211,11 @@ def test_parse_dt_aware_normalizes_to_utc():
     assert dt == datetime(2026, 1, 1, 0, 0, tzinfo=timezone.utc)
 
 
+def test_parse_dt_naive_assumes_utc():
+    dt = parse_dt('2026-01-01T08:00:00')
+    assert dt == datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc)
+
+
 async def test_chat_saves_snapshot_on_terminal_error(fake_core, tmp_path):
     storage = JSONLStorage(tmp_path)
     app = AgentApp([Provider('m', 'k', 'http://x', 0, name='p1')], storage=storage)
