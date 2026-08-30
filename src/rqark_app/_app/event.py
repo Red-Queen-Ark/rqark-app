@@ -5,7 +5,7 @@ from rqark_core.types.chat import Chunk, Message, ToolMessage
 from rqark_core.types.event import AgentPayload
 from rqark_core.types.tool import PlanItem
 
-from rqark_app.types.event import AgentAppEventType
+from rqark_app.types.event import AgentAppEventType, ProviderSwitch
 
 
 class AgentAppEventEmitter(BaseEventEmitter[AgentAppEventType]):
@@ -29,6 +29,9 @@ class AgentAppEventEmitter(BaseEventEmitter[AgentAppEventType]):
 
     def on_plan(self) -> Callable[[EventFunction[AgentPayload[list[PlanItem]]]], EventFunction[AgentPayload[list[PlanItem]]]]:
         return self._on('plan')
+
+    def on_provider_switched(self) -> Callable[[EventFunction[AgentPayload[ProviderSwitch]]], EventFunction[AgentPayload[ProviderSwitch]]]:
+        return self._on('provider_switched')
 
     async def handle_chunk_event(self, ev: AgentPayload[Chunk]):
         chunk = ev.payload
