@@ -1,5 +1,5 @@
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from rqark_core.types.chat import AssistantMessage, Message, SystemMessage, ToolCall, ToolMessage, Usage, UserMessage
@@ -9,8 +9,8 @@ from rqark_core.types.tool import PlanItem
 @dataclass
 class Session:
     uuid: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     title: str = ''
     plan_items: list[PlanItem] = field(default_factory=list)
     history: list[Message] = field(default_factory=list)
@@ -29,12 +29,19 @@ class Session:
     def from_dict(cls, data: dict) -> Session:
         return cls(
             uuid=data['uuid'],
-            created_at=datetime.fromisoformat(data['created_at']),
-            updated_at=datetime.fromisoformat(data['updated_at']),
+            created_at=parse_dt(data['created_at']),
+            updated_at=parse_dt(data['updated_at']),
             title=data.get('title', ''),
             plan_items=[PlanItem(**p) for p in data.get('plan_items', [])],
             history=[message_from_dict(m) for m in data.get('history', [])],
         )
+
+
+def parse_dt(value: str) -> datetime:
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def message_from_dict(data: dict) -> Message:
