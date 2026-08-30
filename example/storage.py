@@ -9,7 +9,7 @@ from rqark_app.app import AgentApp, Provider, ProviderSwitch
 from rqark_app.session.storage import JSONLStorage
 
 provider = Provider(MODEL_NAME, 'api_key', 'http://127.0.0.1:8080', 0, combine=True, thinking='disabled')
-storage = JSONLStorage('./session')
+storage = JSONLStorage('./.sessions')
 app = AgentApp([provider], storage)
 
 
