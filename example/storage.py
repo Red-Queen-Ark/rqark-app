@@ -46,14 +46,13 @@ async def switch_provider(ev: AgentPayload[ProviderSwitch]):
 
 async def main():
     await app.session_mgr.load()
-    print(len(app.session_mgr.sessions_map))
-
     content = '你係邊個?'
-
     session = await app.chat(content, Wednesday())
     await app.chat_helper.gen_title(session.uuid, content)
-
     print(session.title)
+    await app.session_mgr.save(session_id=session.uuid)
+    content = '頭先問咗咩?'
+    session = await app.chat(content, Wednesday(), session.uuid)
 
 if __name__ == '__main__':
     asyncio.run(main())
