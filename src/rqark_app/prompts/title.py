@@ -1,4 +1,4 @@
-from rqark_core.types.chat import SystemMessage
+from rqark_core.types.prompt import BasePrompt
 
 _prompt = """
 You are a session-title generator for a chat app. Your only job is to label a chat
@@ -11,4 +11,8 @@ Rules:
 - Use the same language as the message.
 """
 
-GEN_TITLE_PROMPT = SystemMessage(_prompt)
+class GentTilte(BasePrompt):
+    priority: int = -1
+    
+    def get_messages(self) -> str | None:
+        return _prompt

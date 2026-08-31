@@ -15,14 +15,15 @@ from rqark_app.session.storage import SessionStorage
 from rqark_app.types.agent import BaseAgent
 from rqark_app.types.event import ProviderSwitch
 from rqark_app.types.session import Session
-from rqark_app.libs.title import GEN_TITLE_PROMPT
+from rqark_app.prompts.title import GentTilte
+from rqark_app.prompts.compact import CompactContext
 
 class AgentApp(AgentAppEventEmitter):
     def __init__(self, providers: list[Provider], storage: SessionStorage | None = None):
         super().__init__()
         self.provider_mgr = ProviderManager(providers)
         self.session_mgr = SessionManager(storage)
-
+        
     def _connect_event(self, core: AgentCore):
         core.on_chunk()(self.handle_chunk_event)
         core.on_message()(self.handle_message_event)
@@ -41,14 +42,16 @@ class AgentApp(AgentAppEventEmitter):
         core = AgentCore('GenTitle')
         provider = self.provider_mgr.provider
         for _ in range(3):
-            new_messages, error = await core.chat(provider, [GEN_TITLE_PROMPT, UserMessage(content)], [], [])
+            new_messages, error = await core.chat(provider, [ UserMessage(content) ], [ GentTilte() ], [])
             if error is None:
                 session.title = new_messages[-1].content
                 await self.session_mgr.save(session.uuid)
             else:
                 await self.report_failure(core, provider)
-                await asyncio.sleep(1)
         return session
+    
+    async def compact_context(self, session_id: str):
+        ...
     
     async def chat(self, content: str, agent: BaseAgent, session_id: str | None = None, path: tuple[str, ...] = ()) -> Session:
         session = await self.session_mgr.get_or_create(session_id) if session_id else await self.session_mgr.create()
@@ -70,10 +73,11 @@ class AgentApp(AgentAppEventEmitter):
                 return session
             if not isinstance(error, APIError):
                 raise error
+
             await self.report_failure(core, provider)
-            await asyncio.sleep(1)
     
     async def report_failure(self, core: AgentCore, provider: Provider):
         self.provider_mgr.report_failure()
         if self.provider_mgr.provider is not provider:
             await self._emit('provider_switched', AgentPayload(core.agent_id, core.path, ProviderSwitch(old=provider, new=self.provider_mgr.provider)))
+        await asyncio.sleep(1)
