@@ -5,8 +5,9 @@ from rqark_core.types.chat import Chunk, ToolMessage
 from rqark_core.types.event import AgentPayload
 
 from rqark_app.agent.agents import Wednesday
-from rqark_app.app import AgentApp, Provider, ProviderSwitch
+from rqark_app.app import AgentApp, Provider
 from rqark_app.session.storage import JSONLStorage
+from rqark_app.types.event import ProviderSwitch
 
 provider = Provider(MODEL_NAME, 'api_key', 'http://127.0.0.1:8080', 0, combine=True, thinking='disabled')
 storage = JSONLStorage('./.sessions')
@@ -50,7 +51,7 @@ async def main():
     content = '你係邊個?'
 
     session = await app.chat(content, Wednesday())
-    await app.gen_title(session.uuid, content)
+    await app.chat_helper.gen_title(session.uuid, content)
 
     print(session.title)
 

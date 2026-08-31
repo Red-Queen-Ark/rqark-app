@@ -5,7 +5,8 @@ from rqark_core.types.chat import Chunk, ToolMessage
 from rqark_core.types.event import AgentPayload
 
 from rqark_app.agent.agents import Wednesday
-from rqark_app.app import AgentApp, Provider, ProviderSwitch
+from rqark_app.app import AgentApp, Provider
+from rqark_app.types.event import ProviderSwitch
 
 provider = Provider(MODEL_NAME, 'api_key', 'http://127.0.0.1:8080', 0, combine=True, thinking='disabled')
 
