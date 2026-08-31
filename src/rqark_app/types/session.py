@@ -41,6 +41,20 @@ class Session:
             chunks.append(current)
         return chunks
 
+    def get_last_chunk_for_chat(self) -> list[Message]:
+        return [ m.to_message() if isinstance(m, SummaryMessage) else m for m in self.get_last_chunk() ]
+
+    def get_last_chunk(self) -> list[HistoryMessage]:
+        chunks = self.history_chunk
+        return chunks[-1] if chunks else []
+
+    def update_history_to_last_chunk(self, messages: list[Message]):
+        chunks = self.history_chunk
+        if not chunks:
+            self.history = list(messages)
+            return
+        chunks[-1][1:] = messages[1:]
+        self.history = [m for chunk in chunks for m in chunk]
     def to_dict(self) -> dict:
         return {
             'uuid': self.uuid,

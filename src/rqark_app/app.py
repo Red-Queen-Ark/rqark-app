@@ -6,7 +6,7 @@ from rqark_core.types.provider import Provider
 from rqark_core.types.tool import PlanItem
 
 from rqark_app._app.event import AgentAppEventEmitter
-from rqark_app._app.hepler import ChatHelper
+from rqark_app._app.helper import ChatHelper
 from rqark_app.provider.manager import ProviderManager
 from rqark_app.session.manager import SessionManager
 from rqark_app.session.storage import SessionStorage
@@ -38,7 +38,7 @@ class AgentApp(AgentAppEventEmitter):
         user_msg = UserMessage(content)
         await self._emit('message', AgentPayload(core.agent_id, core.path, user_msg))
         self._connect_event(core)
-        history = [*session.history, user_msg]
+        history = [*session.get_last_chunk_for_chat(), user_msg]
         return await self._loop(session, core, agent, history)
 
     async def _loop(self, session: Session, core: AgentCore, agent: BaseAgent, history: list[Message]) -> Session:
@@ -46,13 +46,16 @@ class AgentApp(AgentAppEventEmitter):
             provider = self.provider_mgr.provider
             new_messages, error = await core.chat(provider, history, agent.prompts, agent.tools)
             history = list(new_messages)
-            session.history = history
+            session.update_history_to_last_chunk(history)
             await self.session_mgr.save(session.uuid)
             if error is None:
                 return session
             if not isinstance(error, APIError):
                 raise error
             if self.chat_helper.is_context_overflow(error):
-                raise error
-                # compacted = await self.chat_helper.compact_context(session.uuid)
+                summary = await self.chat_helper.get_summary(session.uuid)
+                if summary:
+                    session.history += [summary]
+                    await self.session_mgr.save(session.uuid)
+                    history = session.get_last_chunk_for_chat()
             await self.chat_helper.report_failure(core, provider)
