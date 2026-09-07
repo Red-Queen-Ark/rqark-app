@@ -672,7 +672,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "rqark-core", specifier = "==0.2.0", index = "https://gitea.carhyme.top/api/packages/RedQueenArk/pypi/simple" }]
+requires-dist = [{ name = "rqark-core", specifier = "==0.2.1", index = "https://gitea.carhyme.top/api/packages/RedQueenArk/pypi/simple" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -686,16 +686,16 @@ dev = [
 
 [[package]]
 name = "rqark-core"
-version = "0.2.0"
+version = "0.2.1"
 source = { registry = "https://gitea.carhyme.top/api/packages/RedQueenArk/pypi/simple" }
 dependencies = [
     { name = "ddgs" },
     { name = "httpx" },
     { name = "openai" },
 ]
-sdist = { url = "https://gitea.carhyme.top/api/packages/RedQueenArk/pypi/files/rqark-core/0.2.0/rqark_core-0.2.0.tar.gz", hash = "sha256:9efcf97584ab80ea8a0d711e6778c655f741dce5c4219347e15a1403d870f94b" }
+sdist = { url = "https://gitea.carhyme.top/api/packages/RedQueenArk/pypi/files/rqark-core/0.2.1/rqark_core-0.2.1.tar.gz", hash = "sha256:0618b03a7150496c651dbf046810a33fd838b6f0b36ccb6313b74f6c5c2d8f0a" }
 wheels = [
-    { url = "https://gitea.carhyme.top/api/packages/RedQueenArk/pypi/files/rqark-core/0.2.0/rqark_core-0.2.0-py3-none-any.whl", hash = "sha256:c04b97f09701f2e9489a287a1b83fb7c768553eaf2e1cdf7726b23301b4f2e1e" },
+    { url = "https://gitea.carhyme.top/api/packages/RedQueenArk/pypi/files/rqark-core/0.2.1/rqark_core-0.2.1-py3-none-any.whl", hash = "sha256:97e00719441fab00af0438f81035c584406fcbb19c5d42f1240e461a86a013be" },
 ]
 
 [[package]]
