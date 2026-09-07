@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import pytest
 from openai import APIError
-from rqark_core.types.chat import AssistantMessage, ToolCall, Usage, UserMessage
+from rqark_core.types.chat import AssistantMessage, SystemMessage, ToolCall, ToolMessage, Usage, UserMessage
 from rqark_core.types.event import AgentPayload
 from rqark_core.types.provider import Provider
 from rqark_core.types.tool import PlanItem
@@ -141,7 +141,9 @@ async def test_provider_switched_emits_event(fake_core, monkeypatch):
 async def test_jsonl_storage_roundtrip(tmp_path):
     storage = JSONLStorage(tmp_path)
     session = Session(uuid='s1', title='t1')
-    session.history = [UserMessage('hi'), AssistantMessage('yo', tool_calls=[ToolCall('c1', 'function', 'fn', '{}')], usage=Usage(1, 2, 3))]
+    user_msg = UserMessage('hi')
+    assistant_msg = AssistantMessage('yo', tool_calls=[ToolCall('c1', 'function', 'fn', '{}')], reasoning_content='think step', usage=Usage(1, 2, 3))
+    session.history = [user_msg, assistant_msg]
     session.plan_items = [PlanItem('p1', 'do stuff', 'pending')]
     await storage.create(session)
     loaded = await storage.load()
@@ -152,14 +154,38 @@ async def test_jsonl_storage_roundtrip(tmp_path):
     assert s.created_at == session.created_at
     assert s.created_at.utcoffset() == timedelta(0)
     assert s.history[0].content == 'hi'
+    assert isinstance(s.history[0], UserMessage)
+    assert s.history[0].created_at == user_msg.created_at
     assert isinstance(s.history[1], AssistantMessage)
+    assert s.history[1].tool_calls is not None
     assert s.history[1].tool_calls[0].id == 'c1'
     assert s.history[1].tool_calls[0].name == 'fn'
+    assert s.history[1].reasoning_content == 'think step'
+    assert s.history[1].created_at == assistant_msg.created_at
+    assert s.history[1].created_at.utcoffset() == timedelta(0)
     assert s.history[1].usage is None
     assert s.plan_items[0].content == 'do stuff'
     assert await storage.delete('s1') is True
     assert await storage.delete('s1') is False
     assert await storage.load() == []
+
+
+async def test_jsonl_storage_loads_legacy_files_without_message_timestamps(tmp_path):
+    file = tmp_path / 'legacy.jsonl'
+    file.write_text(
+        '\n'.join([
+            '{"uuid": "legacy", "created_at": "2026-01-01T00:00:00+00:00", "updated_at": "2026-01-01T00:00:00+00:00", "title": "", "plan_items": []}',
+            '{"role": "user", "content": "hi"}',
+            '{"role": "assistant", "content": "yo", "tool_calls": [{"id": "c1", "type": "function", "function": {"name": "fn", "arguments": "{}"}}]}',
+        ]) + '\n',
+        encoding='utf-8',
+    )
+    loaded = await JSONLStorage(tmp_path).load()
+    s = loaded[0]
+    assert [type(m).__name__ for m in s.history] == ['UserMessage', 'AssistantMessage']
+    for m in s.history:
+        assert isinstance(m, (UserMessage, AssistantMessage, ToolMessage, SystemMessage))
+        assert m.created_at.tzinfo is not None
 
 
 async def test_chat_persists_session_to_storage(fake_core, tmp_path):

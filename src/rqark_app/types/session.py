@@ -84,17 +84,22 @@ def parse_dt(value: str) -> datetime:
     return dt.astimezone(UTC)
 
 
+def _created_at_from(data: dict) -> datetime:
+    raw = data.get('created_at')
+    return parse_dt(raw) if raw else datetime.now(UTC)
+
+
 def message_from_dict(data: dict) -> HistoryMessage:
     match data['role']:
         case 'user':
-            return UserMessage(content=data['content'])
+            return UserMessage(content=data['content'], created_at=_created_at_from(data))
         case 'summary':
             return SummaryMessage(content=data['content'])
         case 'assistant':
             tool_calls = [ToolCall(id=tc['id'], type=tc['type'], name=tc['function']['name'], arguments=tc['function']['arguments']) for tc in data['tool_calls']] if data.get('tool_calls') else None
             usage = Usage(**data['usage']) if data.get('usage') else None
-            return AssistantMessage(content=data['content'], tool_calls=tool_calls, reasoning_content=data.get('reasoning_content'), usage=usage)
+            return AssistantMessage(content=data['content'], tool_calls=tool_calls, reasoning_content=data.get('reasoning_content'), usage=usage, created_at=_created_at_from(data))
         case 'tool':
-            return ToolMessage(tool_call_id=data['tool_call_id'], content=data['content'], tool_name=data.get('tool_name'), arguments=data.get('arguments'))
+            return ToolMessage(tool_call_id=data['tool_call_id'], content=data['content'], tool_name=data.get('tool_name'), arguments=data.get('arguments'), created_at=_created_at_from(data))
         case _:
-            return SystemMessage(content=data['content'])
+            return SystemMessage(content=data['content'], created_at=_created_at_from(data))
