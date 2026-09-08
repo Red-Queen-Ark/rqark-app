@@ -42,7 +42,7 @@ class AgentAppEventEmitter(BaseEventEmitter[AgentAppEventType]):
         elif chunk.type == 'tool_calls' and isinstance(chunk.content, list):
             await self._emit('tool_calls', ev)
         elif chunk.type == 'tool_result' and isinstance(chunk.content, ToolMessage):
-            await self._emit('tool_result', ev)
+            await self._emit('tool_result', AgentPayload(ev.agent_id, ev.path, chunk.content))
         elif chunk.type == 'error':
             await self._emit('error', ev)
 
