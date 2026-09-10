@@ -64,10 +64,11 @@ class ChatHelper:
         filtered: list[Message] = []
         for m in session.get_last_chunk():
             if isinstance(m, SummaryMessage):
-                continue
-            if isinstance(m, AssistantMessage):
-                m = replace(m, reasoning_content=None)
-            filtered.append(m)
+                filtered.append(m.to_message())
+            elif isinstance(m, AssistantMessage):
+                filtered.append(replace(m, reasoning_content=None))
+            else:
+                filtered.append(m)
         if not filtered:
             return None
         core = AgentCore(f'Compact:{session_id}')
