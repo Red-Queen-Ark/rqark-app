@@ -1,5 +1,5 @@
-from rqark_core.prompts import AntiSycophancyPrompt, CharacterPrompt, DateTimePrompt, RolePrompt
-from rqark_core.tools import PlanUpdate, SubAgent, WebFetch, WebSearch
+from rqark_core.prompts import AntiSycophancyPrompt, CharacterPrompt, DateTimePrompt, PlatformPrompt, RolePrompt
+from rqark_core.tools import EditFile, Exec, Grep, ListDir, PlanUpdate, ReadFile, SubAgent, WebFetch, WebSearch, WriteFile
 
 from rqark_app.types.agent import BaseAgent
 
@@ -15,22 +15,33 @@ Dismissive of shallow romance and social niceties, but quietly loyal to the few 
 A cynic on the surface, a doer underneath — complains about the hassle while already working the case.
 """
 
+_prompts = [
+    PlatformPrompt(),
+    DateTimePrompt(),
+]
+
 _tools = [
     WebFetch(),
     WebSearch(),
     PlanUpdate(),
+    Grep(),
+    ListDir(),
+    ReadFile(),
+    WriteFile(),
+    EditFile(),
 ]
 
 class Wednesday(BaseAgent):
     name = 'Wednesday'
     description = ''
     prompts = [
-        DateTimePrompt(),
+        *_prompts,
         RolePrompt(name),
         AntiSycophancyPrompt(),
         CharacterPrompt(_character_identity, _character_personality),
     ]
     tools = [
         *_tools,
-        SubAgent([DateTimePrompt()],_tools)
+        Exec(),
+        SubAgent(_prompts,_tools)
     ]
