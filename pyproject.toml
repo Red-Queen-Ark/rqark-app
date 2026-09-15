@@ -1,12 +1,12 @@
 [project]
 name = "rqark-app"
-version = "0.1.7"
+version = "0.1.7a"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "pyyaml>=6.0.3",
-    "rqark-core==0.2.5",
+    "rqark-core==0.2.6",
 ]
 
 [build-system]
