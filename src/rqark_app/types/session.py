@@ -89,10 +89,44 @@ def _created_at_from(data: dict) -> datetime:
     return parse_dt(raw) if raw else datetime.now(UTC)
 
 
+def _text_part(part: dict) -> str | None:
+    value = part.get('text')
+    return value if isinstance(value, str) else None
+
+
+def _image_part(part: dict) -> str | None:
+    url = part.get('image_url')
+    if not isinstance(url, dict):
+        return None
+    value = url.get('url')
+    return value if isinstance(value, str) else None
+
+
+def _user_parts(content: object) -> tuple[str, list[str]]:
+    if isinstance(content, str):
+        return content, []
+    if not isinstance(content, list):
+        return '', []
+    text: list[str] = []
+    images: list[str] = []
+    for part in content:
+        if not isinstance(part, dict):
+            continue
+        match part.get('type'):
+            case 'text':
+                if (value := _text_part(part)) is not None:
+                    text.append(value)
+            case 'image_url':
+                if (value := _image_part(part)) is not None:
+                    images.append(value)
+    return '\n'.join(text), images
+
+
 def message_from_dict(data: dict) -> HistoryMessage:
     match data['role']:
         case 'user':
-            return UserMessage(content=data['content'], created_at=_created_at_from(data))
+            content, images = _user_parts(data['content'])
+            return UserMessage(content=content, images=images, created_at=_created_at_from(data))
         case 'summary':
             return SummaryMessage(content=data['content'])
         case 'assistant':
