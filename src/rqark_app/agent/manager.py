@@ -7,6 +7,7 @@ class AgentManager:
     def __init__(self, agents: Sequence[BaseAgent]):
         self.agents: Sequence[BaseAgent] = agents
         self.cur_index = 0
+        self.retry: int = 0
 
     @property
     def agent(self) -> BaseAgent:

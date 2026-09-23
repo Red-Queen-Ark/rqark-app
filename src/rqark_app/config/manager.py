@@ -85,6 +85,10 @@ class ConfigManager:
             agent_info = self.io_helper.read(agent_config_path)
             if agent_info:
                 agents.append(self._build_agent(agent_info))
+        if not agents:
+            # Every file exists but none parsed, so fall back to the presets rather
+            # than leaving the app with no agent to run.
+            agents = list(AGENTS)
         self.agents = agents
 
     def _build_agent(self, agent_info: dict) -> BaseAgent:
