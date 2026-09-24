@@ -46,3 +46,17 @@ uv add rqark-app
 #### Chat ReTry Loop
 
 ## Example
+```python
+from rqark_core.types.provider import Provider
+from rqark_app.app import AgentApp
+from rqark_app.agent.agents import Wednesday
+
+provider = Provider('MODEL_NAME', 'api_key', 'http://127.0.0.1:8080')
+app = AgentApp([provider])
+
+async def main():
+    await app.chat('你係邊個?', Wednesday())
+
+if __name__ == '__main__':
+    asyncio.run(main())
+```
