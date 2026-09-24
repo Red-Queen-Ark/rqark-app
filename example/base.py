@@ -4,6 +4,7 @@ from model import MODEL_NAME
 from rqark_core.types.chat import Chunk, ToolMessage
 from rqark_core.types.event import AgentPayload
 from rqark_core.types.provider import Provider
+
 from rqark_app.agent.agents import Wednesday
 from rqark_app.app import AgentApp
 from rqark_app.types.event import ProviderSwitch
