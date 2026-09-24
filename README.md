@@ -31,5 +31,18 @@ uv add rqark-app
 ```
 
 ## Features
+### Manager
+#### Provider Manager
+
+#### Agents Manager
+
+#### Session Manager
+
+#### Config Manager
+
+### Agent App
+#### Event
+
+#### Chat ReTry Loop
 
 ## Example
