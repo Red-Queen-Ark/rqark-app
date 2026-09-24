@@ -48,7 +48,20 @@ uv add rqark-app
 
 ### Agent App
 #### Event
-將 core 嘅 `AgentPayload` 細化成 8 種具型別事件：`think`、`content`、`tool_calls`、`tool_result`、`error`、`message`、`plan`、`provider_switched`，以 decorator 形式註冊 callback。
+細化 core 嘅 `on_chunk`，將 `Chunk.type` 拆成獨立事件。
+
+| 裝飾器 | 事件內容 |
+|---|---|
+| `on_think` | `AgentPayload[Chunk]`（`Chunk.type`：`reasoning_content`） |
+| `on_content` | `AgentPayload[Chunk]`（`Chunk.type`：`content`） |
+| `on_tool_calls` | `AgentPayload[Chunk]`（`Chunk.type`：`tool_calls`，`content` 為 list） |
+| `on_tool_result` | `AgentPayload[ToolMessage]`（已由 `Chunk` 拆出） |
+| `on_error` | `AgentPayload[Chunk]`（`Chunk.type`：`error`） |
+| `on_message` | `AgentPayload[Message]`（user / tool / assistant / system） |
+| `on_plan` | `AgentPayload[list[PlanItem]]` |
+| `on_provider_switched` | `AgentPayload[ProviderSwitch]`（`old` / `new`） |
+
+`Chunk.type` 為 `usage` 者唔會 emit。
 
 #### Chat ReTry Loop
 `AgentApp.chat` 係唯一入口。遇 `APIError` 或 context overflow 會無限重試：自動壓縮 context、輪換 Provider，直至成功回應。
