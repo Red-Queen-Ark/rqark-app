@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class CloudConfig:
-    enabled: bool = False
+    enabled: bool = True
     url: str = ''
     api_key: str = ''
 

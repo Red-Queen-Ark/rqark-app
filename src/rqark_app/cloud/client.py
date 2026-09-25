@@ -2,6 +2,7 @@ import httpx
 
 from rqark_app.types.cloud import CloudConfig
 
+
 class DataCloudError(Exception):
     def __init__(self, status_code: int, code: str, message: str):
         super().__init__(message)
@@ -35,7 +36,7 @@ class RQArkDataCloudClient:
         return self._json(await self.request('GET', 'users/me')) or {}
 
     async def list_agents(self, limit: int | None = None, offset: int | None = None) -> list[dict]:
-        ...
+        return await self._list('agents', limit, offset)
 
     async def get_agent(self, uuid: str) -> dict:
         return self._json(await self.request('GET', f'agents/{uuid}')) or {}
@@ -50,7 +51,7 @@ class RQArkDataCloudClient:
         await self.request('DELETE', f'agents/{uuid}')
 
     async def list_providers(self, limit: int | None = None, offset: int | None = None) -> list[dict]:
-        ...
+        return await self._list('providers', limit, offset)
 
     async def get_provider(self, uuid: str) -> dict:
         return self._json(await self.request('GET', f'providers/{uuid}')) or {}
@@ -70,8 +71,12 @@ class RQArkDataCloudClient:
     def _url(self, path: str) -> str:
         return f'{self.api_url}/{path.lstrip("/")}'
 
-    async def _page(self, path: str, limit: int, offset: int) -> dict:
-        return self._json(await self.request('GET', path, params={'limit': limit, 'offset': offset})) or {}
+    async def _list(self, path: str, limit: int | None, offset: int | None) -> list[dict]:
+        items = self._json(await self.request('GET', path)) or []
+        start = offset or 0
+        if limit is None:
+            return items[start:]
+        return items[start : start + limit]
 
     def _json(self, response: httpx.Response):
         if not response.content:
