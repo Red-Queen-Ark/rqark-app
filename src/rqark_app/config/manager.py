@@ -7,6 +7,7 @@ from rqark_core.types.prompt import BasePrompt
 from rqark_core.types.provider import Provider
 from rqark_core.types.tool import BaseTool
 
+from rqark_app.types.cloud import CloudConfig
 from rqark_app.config.default import AGENTS, PROVIDERS
 from rqark_app.config.dir_cache import DirCache
 from rqark_app.libs.io import IoHelper
@@ -72,6 +73,14 @@ class ConfigManager:
         self.config_path.mkdir(parents=True, exist_ok=True)
         self._load_agents()
         self._load_providers()
+
+    def _load_cloud(self):
+        path = self.config_path / 'providers.yml'
+        info = self.io_helper.read(path) or {}
+        enabled = bool(info.get('enabled'))
+        url = str(info.get('url') or '')
+        api_key = str(info.get('api_key') or '')
+        self.cloud = CloudConfig(enabled, url, api_key)
 
     def _load_agents(self):
         path = self.config_path / 'agents'
