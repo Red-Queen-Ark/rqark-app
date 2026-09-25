@@ -1,3 +1,5 @@
+from types import TracebackType
+
 import httpx
 
 from rqark_app.types.cloud import CloudConfig
@@ -27,10 +29,22 @@ class RQArkDataCloudClient:
     async def request(self, method: str, path: str, **kwargs) -> httpx.Response:
         if not self.config.configured:
             raise DataCloudError(0, 'NOT_CONFIGURED', 'data cloud is not enabled, or has no url and api key')
-        response = await self._client.request(method, self._url(path), headers=self._headers(), **kwargs)
+        try:
+            response = await self._client.request(method, self._url(path), headers=self._headers(), **kwargs)
+        except httpx.HTTPError as error:
+            raise DataCloudError(0, 'REQUEST_FAILED', str(error)) from error
         if response.status_code >= 400:
             raise self._error(response)
         return response
+
+    async def aclose(self) -> None:
+        await self._client.aclose()
+
+    async def __aenter__(self) -> RQArkDataCloudClient:
+        return self
+
+    async def __aexit__(self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: TracebackType | None) -> None:
+        await self.aclose()
 
     async def me(self) -> dict:
         return self._json(await self.request('GET', 'users/me')) or {}

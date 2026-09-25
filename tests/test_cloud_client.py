@@ -90,3 +90,40 @@ async def test_list_agents_authorizes_with_the_api_key(build_client):
     await client.list_agents()
 
     assert calls[0].headers['Authorization'] == 'Bearer secret'
+
+
+async def test_request_wraps_transport_errors(build_client):
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError('connection refused')
+
+    client = build_client(handler)
+
+    with pytest.raises(DataCloudError) as info:
+        await client.me()
+    assert info.value.status_code == 0
+    assert info.value.code == 'REQUEST_FAILED'
+
+
+async def test_request_wraps_protocol_errors(build_client):
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.RemoteProtocolError('server disconnected without sending a response')
+
+    client = build_client(handler)
+
+    with pytest.raises(DataCloudError) as info:
+        await client.me()
+    assert info.value.status_code == 0
+    assert info.value.code == 'REQUEST_FAILED'
+
+
+async def test_context_manager_closes_the_client(build_client):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=[])
+
+    client = build_client(handler)
+
+    async with client as opened:
+        assert opened is client
+        assert await client.me() == {}
+
+    assert client._client.is_closed
