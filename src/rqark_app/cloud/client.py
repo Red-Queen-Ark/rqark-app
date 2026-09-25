@@ -14,10 +14,10 @@ class DataCloudError(Exception):
 
 
 class RQArkDataCloudClient:
-    def __init__(self, config: CloudConfig, timeout: float = 30.0):
+    def __init__(self, config: CloudConfig, timeout: float = 30.0, transport: httpx.AsyncBaseTransport | None = None):
         self.config = config
         self.timeout = timeout
-        self._client = httpx.AsyncClient(timeout=self.timeout)
+        self._client = httpx.AsyncClient(timeout=self.timeout, transport=transport)
 
     @property
     def api_url(self) -> str:
