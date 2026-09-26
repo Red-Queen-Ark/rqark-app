@@ -4,4 +4,4 @@ AGENTS = [AgentHoliday(), Diana(), Wednesday()]
 
 PROVIDERS: list[dict] = [{'name': '', 'model_name': '', 'api_key': '', 'api_base': '', 'priority': 1}]
 
-CLOUD: dict = {'enabled': False, 'url': '', 'api_key': ''}
+CLOUD: dict = {'enabled': True, 'url': '', 'api_key': ''}
