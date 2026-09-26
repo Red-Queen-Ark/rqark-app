@@ -101,7 +101,7 @@ class ConfigManager:
 
     async def _load_agents(self):
         if self.cloud_client is not None:
-            self.agents = [self._build_agent(agent_info) for agent_info in await self.cloud_client.list_agents()]
+            self.agents = await self._load_cloud_agents(self.cloud_client)
             return
         path = self.config_path / 'agents'
         path.mkdir(parents=True, exist_ok=True)
@@ -117,6 +117,16 @@ class ConfigManager:
         if not agents:
             agents = list(AGENTS)
         self.agents = agents
+
+    async def _load_cloud_agents(self, client: RQArkDataCloudClient) -> list[BaseAgent]:
+        agent_info_list = await client.list_agents()
+        if agent_info_list:
+            return [self._build_agent(agent_info) for agent_info in agent_info_list]
+        agents: list[BaseAgent] = []
+        for agent in AGENTS:
+            created = await client.create_agent(agent.to_dict())
+            agents.append(self._build_agent(created) if created else agent)
+        return agents
 
     def _build_agent(self, agent_info: dict) -> BaseAgent:
         agent = BaseAgent()

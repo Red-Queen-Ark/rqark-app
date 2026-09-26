@@ -1,4 +1,5 @@
 import asyncio
+import json
 from pathlib import Path
 
 import httpx
@@ -102,6 +103,35 @@ def cloud_transport() -> httpx.MockTransport:
         return httpx.Response(404, json={'error': {'code': 'NOT_FOUND', 'message': request.url.path}})
 
     return httpx.MockTransport(handler)
+
+
+def empty_cloud_transport(created: list[dict]) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == '/api/agents':
+            if request.method == 'POST':
+                agent_info = json.loads(request.content)
+                agent_info['id'] = f'id-{len(created)}'
+                created.append(agent_info)
+                return httpx.Response(200, json=agent_info)
+            return httpx.Response(200, json=created)
+        if request.url.path == '/api/providers':
+            return httpx.Response(200, json=[])
+        return httpx.Response(404, json={'error': {'code': 'NOT_FOUND', 'message': request.url.path}})
+
+    return httpx.MockTransport(handler)
+
+
+async def test_an_empty_cloud_is_seeded_with_the_presets(tmp_path: Path):
+    (config_dir(tmp_path) / 'cloud.yml').write_text(CLOUD_YML, encoding='utf-8')
+    created: list[dict] = []
+
+    config_mgr = ConfigManager(str(tmp_path), cloud_transport=empty_cloud_transport(created))
+    await config_mgr.load()
+    try:
+        assert [agent.name for agent in config_mgr.agents] == [agent.name for agent in AGENTS]
+        assert [agent['name'] for agent in created] == [agent.name for agent in AGENTS]
+    finally:
+        await config_mgr.aclose()
 
 
 async def test_a_configured_cloud_is_loaded_instead_of_the_local_files(tmp_path: Path):
