@@ -45,6 +45,19 @@ uv add rqark-app
 #### Config Manager
 - 由設定目錄載入 agents 同 providers，透過 prompts/tools 註冊表建構物件，未設定時用內建預設
 - `DirCache` 另外記錄每個工作目錄對應嘅 session ids。
+- `cloud.yml` 一經啟用（`enabled` + `url` + `api_key`）就以 cloud 為唯一來源，**唔會** fallback 去本地檔案。連唔到 cloud 就由 `load()` 直接拋 `DataCloudError`，由呼叫方決定點報俾 user：
+  - `REQUEST_FAILED`：連唔到 cloud，`message` 會帶實際 URL
+  - `INVALID_RESPONSE`：cloud 回應主體唔係合法 JSON
+  - 其他 `code`：cloud 回 4xx/5xx，睇 `status_code`
+
+```python
+from rqark_app.cloud.client import DataCloudError
+
+try:
+    await config_mgr.load()
+except DataCloudError as error:
+    print(f'載入設定失敗: {error.message} ({error.code})')
+```
 
 ### Agent App
 #### Event

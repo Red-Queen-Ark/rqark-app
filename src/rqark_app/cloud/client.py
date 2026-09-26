@@ -29,10 +29,11 @@ class RQArkDataCloudClient:
     async def request(self, method: str, path: str, **kwargs) -> httpx.Response:
         if not self.config.configured:
             raise DataCloudError(0, 'NOT_CONFIGURED', 'data cloud is not enabled, or has no url and api key')
+        url = self._url(path)
         try:
-            response = await self._client.request(method, self._url(path), headers=self._headers(), **kwargs)
+            response = await self._client.request(method, url, headers=self._headers(), **kwargs)
         except httpx.HTTPError as error:
-            raise DataCloudError(0, 'REQUEST_FAILED', str(error)) from error
+            raise DataCloudError(0, 'REQUEST_FAILED', f'cannot reach data cloud at {url}: {error}') from error
         if response.status_code >= 400:
             raise self._error(response)
         return response
@@ -95,7 +96,10 @@ class RQArkDataCloudClient:
     def _json(self, response: httpx.Response):
         if not response.content:
             return None
-        return response.json()
+        try:
+            return response.json()
+        except ValueError as error:
+            raise DataCloudError(response.status_code, 'INVALID_RESPONSE', f'data cloud answered {response.status_code} with a body that is not json') from error
 
     def _error(self, response: httpx.Response) -> DataCloudError:
         code = 'UNKNOWN'
