@@ -80,6 +80,24 @@ class RQArkDataCloudClient:
     async def delete_provider(self, uuid: str) -> None:
         await self.request('DELETE', f'providers/{uuid}')
 
+    async def list_sessions(self, limit: int | None = None, offset: int | None = None) -> list[dict]:
+        return await self._list('sessions', limit, offset)
+
+    async def get_session(self, uuid: str) -> dict:
+        return self._json(await self.request('GET', f'sessions/{uuid}')) or {}
+
+    async def create_session(self, payload: dict) -> dict:
+        return self._json(await self.request('POST', 'sessions', json=payload)) or {}
+
+    async def update_session(self, uuid: str, payload: dict) -> dict:
+        return self._json(await self.request('PUT', f'sessions/{uuid}', json=payload)) or {}
+
+    async def delete_session(self, uuid: str) -> None:
+        await self.request('DELETE', f'sessions/{uuid}')
+
+    async def list_session_messages(self, uuid: str, limit: int | None = None, offset: int | None = None) -> list[dict]:
+        return await self._list(f'sessions/{uuid}/messages', limit, offset)
+
     def _headers(self) -> dict[str, str]:
         return {'Authorization': f'Bearer {self.config.api_key}'}
 

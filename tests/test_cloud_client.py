@@ -4,7 +4,7 @@ import pytest
 from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
 from rqark_app.types.cloud import CloudConfig
 
-COLLECTIONS = ['agents', 'providers']
+COLLECTIONS = ['agents', 'providers', 'sessions']
 
 
 @pytest.fixture
