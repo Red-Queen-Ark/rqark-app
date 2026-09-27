@@ -1,11 +1,12 @@
 from rqark_core.types.tool import PlanItem
 
 from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
-from rqark_app.session.storage import SessionStorage
 from rqark_app.types.session import Session, message_from_dict, parse_dt
 
+from .base import SessionStorage
 
-class CloudStore(SessionStorage):
+
+class CloudStorage(SessionStorage):
     def __init__(self, client: RQArkDataCloudClient):
         self.client = client
 

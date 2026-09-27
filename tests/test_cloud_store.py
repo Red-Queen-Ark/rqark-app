@@ -6,7 +6,7 @@ from rqark_core.types.chat import UserMessage
 from rqark_core.types.tool import PlanItem
 
 from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
-from rqark_app.cloud.store import CloudStore
+from rqark_app.session.storage import CloudStorage
 from rqark_app.types.cloud import CloudConfig
 from rqark_app.types.session import Session, SummaryMessage
 
@@ -35,7 +35,7 @@ class FakeCloud:
 async def cloud():
     fake = FakeCloud()
     client = RQArkDataCloudClient(CloudConfig(True, 'https://cloud.test', 'secret'), transport=httpx.MockTransport(fake.handler))
-    fake.store = CloudStore(client)
+    fake.store = CloudStorage(client)
     yield fake
     await client.aclose()
 
