@@ -65,6 +65,13 @@ def _build_tool(info: dict) -> BaseTool:
 def _build_provider(info: dict) -> Provider:
     return Provider(**{key: value for key, value in info.items() if key in PROVIDER_FIELDS})
 
+def _build_agent(agent_info: dict) -> BaseAgent:
+    agent = BaseAgent()
+    agent.name = agent_info['name']
+    agent.description = agent_info.get('description', '')
+    agent.prompts = [_build_prompt(p) for p in agent_info.get('prompts', [])]
+    agent.tools = [_build_tool(t) for t in agent_info.get('tools', [])]
+    return agent
 
 class ConfigManager:
     def __init__(self, config_path: str, cloud_transport: httpx.AsyncBaseTransport | None = None):
@@ -113,7 +120,7 @@ class ConfigManager:
         for agent_config_path in agent_config_list:
             agent_info = self.io_helper.read(agent_config_path)
             if agent_info:
-                agents.append(self._build_agent(agent_info))
+                agents.append(_build_agent(agent_info))
         if not agents:
             agents = list(AGENTS)
         self.agents = agents
@@ -121,20 +128,12 @@ class ConfigManager:
     async def _load_cloud_agents(self, client: RQArkDataCloudClient) -> list[BaseAgent]:
         agent_info_list = await client.list_agents()
         if agent_info_list:
-            return [self._build_agent(agent_info) for agent_info in agent_info_list]
+            return [_build_agent(agent_info) for agent_info in agent_info_list]
         agents: list[BaseAgent] = []
         for agent in AGENTS:
             created = await client.create_agent(agent.to_dict())
-            agents.append(self._build_agent(created) if created else agent)
+            agents.append(_build_agent(created) if created else agent)
         return agents
-
-    def _build_agent(self, agent_info: dict) -> BaseAgent:
-        agent = BaseAgent()
-        agent.name = agent_info['name']
-        agent.description = agent_info.get('description', '')
-        agent.prompts = [_build_prompt(p) for p in agent_info.get('prompts', [])]
-        agent.tools = [_build_tool(t) for t in agent_info.get('tools', [])]
-        return agent
 
     def _create_default_agent_config(self, path: Path):
         for a in AGENTS:
