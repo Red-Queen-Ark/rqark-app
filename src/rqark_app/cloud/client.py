@@ -80,17 +80,18 @@ class RQArkDataCloudClient:
     async def delete_provider(self, uuid: str) -> None:
         await self.request('DELETE', f'providers/{uuid}')
 
-    async def list_sessions(self, limit: int | None = None, offset: int | None = None) -> list[dict]:
-        return await self._list('sessions', limit, offset)
+    async def list_sessions(self, source: str | None = None, limit: int | None = None, offset: int | None = None) -> list[dict]:
+        params = {'source': source} if source is not None else None
+        return await self._list('sessions', limit, offset, params)
 
     async def get_session(self, uuid: str) -> dict:
         return self._json(await self.request('GET', f'sessions/{uuid}')) or {}
 
-    async def create_session(self, payload: dict) -> dict:
-        return self._json(await self.request('POST', 'sessions', json=payload)) or {}
+    async def create_session(self, payload: dict, source: str | None = None) -> dict:
+        return self._json(await self.request('POST', 'sessions', json=self._with_source(payload, source))) or {}
 
-    async def update_session(self, uuid: str, payload: dict) -> dict:
-        return self._json(await self.request('PUT', f'sessions/{uuid}', json=payload)) or {}
+    async def update_session(self, uuid: str, payload: dict, source: str | None = None) -> dict:
+        return self._json(await self.request('PUT', f'sessions/{uuid}', json=self._with_source(payload, source))) or {}
 
     async def delete_session(self, uuid: str) -> None:
         await self.request('DELETE', f'sessions/{uuid}')
@@ -104,8 +105,14 @@ class RQArkDataCloudClient:
     def _url(self, path: str) -> str:
         return f'{self.api_url}/{path.lstrip("/")}'
 
-    async def _list(self, path: str, limit: int | None, offset: int | None) -> list[dict]:
-        items = self._json(await self.request('GET', path)) or []
+    @staticmethod
+    def _with_source(payload: dict, source: str | None) -> dict:
+        if source is None:
+            return payload
+        return {**payload, 'source': source}
+
+    async def _list(self, path: str, limit: int | None, offset: int | None, params: dict | None = None) -> list[dict]:
+        items = self._json(await self.request('GET', path, params=params)) or []
         start = offset or 0
         if limit is None:
             return items[start:]

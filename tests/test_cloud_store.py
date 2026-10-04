@@ -151,3 +151,37 @@ async def test_delete_raises_on_another_error(cloud):
 
     with pytest.raises(DataCloudError):
         await cloud.store.delete('s1')
+
+
+async def test_a_source_is_stamped_on_every_write_without_restricting_the_listing():
+    fake = FakeCloud()
+    client = RQArkDataCloudClient(CloudConfig(True, 'https://cloud.test', 'secret'), transport=httpx.MockTransport(fake.handler))
+    store = CloudStorage(client, source='TUI')
+    fake.add('PUT', '/api/sessions/s1', httpx.Response(200, json={'id': 's1'}))
+    fake.add('GET', '/api/sessions', httpx.Response(200, json=[]))
+
+    try:
+        await store.save(Session(uuid='s1'))
+        await store.load()
+    finally:
+        await client.aclose()
+
+    assert body(fake.calls[0])['source'] == 'TUI'
+    assert not fake.calls[1].url.params
+
+
+async def test_a_list_source_restricts_the_listing():
+    fake = FakeCloud()
+    client = RQArkDataCloudClient(CloudConfig(True, 'https://cloud.test', 'secret'), transport=httpx.MockTransport(fake.handler))
+    store = CloudStorage(client, source='AGENT_CLOUD', list_source='AGENT_CLOUD')
+    fake.add('PUT', '/api/sessions/s1', httpx.Response(200, json={'id': 's1'}))
+    fake.add('GET', '/api/sessions', httpx.Response(200, json=[]))
+
+    try:
+        await store.save(Session(uuid='s1'))
+        await store.load()
+    finally:
+        await client.aclose()
+
+    assert body(fake.calls[0])['source'] == 'AGENT_CLOUD'
+    assert fake.calls[1].url.params.get('source') == 'AGENT_CLOUD'

@@ -7,25 +7,27 @@ from .base import SessionStorage
 
 
 class CloudStorage(SessionStorage):
-    def __init__(self, client: RQArkDataCloudClient):
+    def __init__(self, client: RQArkDataCloudClient, source: str = '', list_source: str | None = None):
         self.client = client
+        self.source = source
+        self.list_source = list_source
 
     async def create(self, session: Session) -> None:
-        await self.client.create_session(self._metadata(session))
+        await self.client.create_session(self._metadata(session), source=self._source())
 
     async def save(self, session: Session) -> None:
         payload = self._payload(session)
         try:
-            await self.client.update_session(session.uuid, payload)
+            await self.client.update_session(session.uuid, payload, source=self._source())
             return
         except DataCloudError as error:
             if error.status_code != 404:
                 raise
-        await self.client.create_session(self._metadata(session))
-        await self.client.update_session(session.uuid, payload)
+        await self.client.create_session(self._metadata(session), source=self._source())
+        await self.client.update_session(session.uuid, payload, source=self._source())
 
     async def load(self) -> list[Session]:
-        return [await self._restore(info) for info in await self.client.list_sessions()]
+        return [await self._restore(info) for info in await self.client.list_sessions(source=self.list_source)]
 
     async def delete(self, session_id: str) -> bool:
         try:
@@ -35,6 +37,9 @@ class CloudStorage(SessionStorage):
                 return False
             raise
         return True
+
+    def _source(self) -> str | None:
+        return self.source or None
 
     def _payload(self, session: Session) -> dict:
         payload = session.to_dict()

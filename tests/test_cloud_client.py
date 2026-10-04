@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 
@@ -176,3 +178,43 @@ async def test_context_manager_closes_the_client(build_client):
         assert await client.me() == {}
 
     assert client._client.is_closed
+
+
+async def test_list_sessions_query_is_the_source_when_one_is_given(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=[])
+
+    client = build_client(handler)
+    await client.list_sessions(source='TUI')
+
+    assert calls[0].url.path == '/api/sessions'
+    assert calls[0].url.params.get('source') == 'TUI'
+
+
+async def test_create_session_merges_the_source_into_the_payload(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(201, json={})
+
+    client = build_client(handler)
+    await client.create_session({'uuid': 's1'}, source='TUI')
+
+    assert json.loads(calls[0].content) == {'uuid': 's1', 'source': 'TUI'}
+
+
+async def test_update_session_merges_the_source_into_the_payload(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={})
+
+    client = build_client(handler)
+    await client.update_session('s1', {'title': 'spec'}, source='AGENT_CLOUD')
+
+    assert json.loads(calls[0].content) == {'title': 'spec', 'source': 'AGENT_CLOUD'}
