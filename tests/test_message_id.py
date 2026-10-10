@@ -45,23 +45,23 @@ async def test_jsonl_storage_roundtrip_preserves_every_id(tmp_path):
     assert [message.to_dict() for message in loaded.history] == [message.to_dict() for message in session.history]
 
 
-def test_revert_drops_everything_after_the_target_user_message():
+def test_revert_drops_the_target_user_message_and_everything_after_it():
     first, second = UserMessage('one'), UserMessage('two')
     history = [first, AssistantMessage('a1'), second, AssistantMessage('a2')]
     session = Session(history=list(history))
 
     removed = session.revert_to(second.id)
 
-    assert removed == [history[3]]
-    assert session.history == history[:3]
+    assert removed == [history[2], history[3]]
+    assert session.history == history[:2]
 
 
-def test_revert_keeps_the_target_user_message_only_even_mid_chunk():
+def test_revert_drops_the_target_user_message_even_mid_chunk():
     first, second, assistant = UserMessage('one'), UserMessage('two'), AssistantMessage('a2')
     session = Session(history=[first, second, assistant])
 
-    assert session.revert_to(second.id) == [assistant]
-    assert session.history == [first, second]
+    assert session.revert_to(second.id) == [second, assistant]
+    assert session.history == [first]
 
 
 def test_revert_is_refused_with_a_single_user_message():
@@ -87,8 +87,8 @@ def test_revert_never_touches_an_earlier_chunk():
     history = [first, AssistantMessage('a1'), summary, second, AssistantMessage('a2')]
     session = Session(history=list(history))
 
-    assert session.revert_to(second.id) == [history[4]]
-    assert session.history == history[:4]
+    assert session.revert_to(second.id) == [history[3], history[4]]
+    assert session.history == history[:3]
 
-    assert session.revert_to(first.id) is not None
-    assert session.history == [first]
+    assert session.revert_to(first.id) is None
+    assert session.history == history[:3]

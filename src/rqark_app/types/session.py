@@ -63,8 +63,8 @@ class Session:
             return None
         if sum(isinstance(m, UserMessage) for m in self.history) <= 1:
             return None
-        removed = self.history[index + 1 :]
-        self.history = self.history[: index + 1]
+        removed = self.history[index:]
+        self.history = self.history[:index]
         return removed
 
     def to_dict(self) -> dict:
