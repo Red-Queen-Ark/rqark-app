@@ -35,6 +35,15 @@ class SessionManager:
     async def get(self, session_id: str) -> Session | None:
         return self.sessions_map.get(session_id, None)
 
+    async def revert(self, session_id: str, message_id: str) -> Session | None:
+        session = self.sessions_map.get(session_id)
+        if session is None:
+            return None
+        if session.revert_to(message_id) is None:
+            return None
+        await self.save(session_id)
+        return session
+
     async def load(self):
         if self.storage:
             sessions = await self.storage.load()

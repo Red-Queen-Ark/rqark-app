@@ -69,7 +69,7 @@ async def test_save_updates_with_the_whole_history(cloud):
     assert paths(cloud) == [('PUT', '/api/sessions/s1')]
     sent = body(cloud.calls[0])
     assert sent['title'] == 'spec'
-    assert sent['history'] == [{'role': 'user', 'content': [{'type': 'text', 'text': 'hi'}], 'created_at': session.history[0].to_dict()['created_at']}]
+    assert sent['history'] == [{'role': 'user', 'content': [{'type': 'text', 'text': 'hi'}], 'created_at': session.history[0].to_dict()['created_at'], 'id': session.history[0].to_dict()['id']}]
     assert 'created_at' not in sent
     assert 'updated_at' not in sent
 
@@ -121,6 +121,26 @@ async def test_load_restores_sessions_and_their_messages(cloud):
     assert [type(message) for message in session.history] == [UserMessage, SummaryMessage]
     assert session.history[0].content == 'hi'
     assert session.history[1].content == 'so far'
+
+
+async def test_load_keeps_the_message_ids(cloud):
+    metadata = {'id': 's1', 'title': '', 'plan_items': [], 'created_at': CREATED_AT, 'updated_at': CREATED_AT}
+    cloud.add('GET', '/api/sessions', httpx.Response(200, json=[metadata]))
+    cloud.add(
+        'GET',
+        '/api/sessions/s1/messages',
+        httpx.Response(
+            200,
+            json=[
+                {'seq': 0, 'role': 'user', 'data': {'role': 'user', 'content': [{'type': 'text', 'text': 'hi'}], 'created_at': CREATED_AT, 'id': 'u1'}, 'created_at': CREATED_AT},
+                {'seq': 1, 'role': 'summary', 'data': {'role': 'summary', 'content': 'so far', 'id': 's1-summary'}, 'created_at': None},
+            ],
+        ),
+    )
+
+    sessions = await cloud.store.load()
+
+    assert [message.id for message in sessions[0].history] == ['u1', 's1-summary']
 
 
 async def test_load_reads_both_lists_in_one_request_each(cloud):

@@ -12,9 +12,10 @@ type HistoryMessage = Message | SummaryMessage
 class SummaryMessage:
     content: str
     role: Literal['summary'] = 'summary'
+    id: str = field(default_factory=lambda: str(uuid4()))
 
     def to_dict(self) -> dict:
-        return {'role': self.role, 'content': self.content}
+        return {'role': self.role, 'content': self.content, 'id': self.id}
 
     def to_message(self) -> UserMessage:
         return UserMessage(self.content)
@@ -55,6 +56,17 @@ class Session:
             return
         chunks[-1][1:] = messages[1:]
         self.history = [m for chunk in chunks for m in chunk]
+
+    def revert_to(self, message_id: str) -> list[HistoryMessage] | None:
+        index = next((i for i, m in enumerate(self.history) if m.id == message_id), None)
+        if index is None or not isinstance(self.history[index], UserMessage):
+            return None
+        if sum(isinstance(m, UserMessage) for m in self.history) <= 1:
+            return None
+        removed = self.history[index + 1 :]
+        self.history = self.history[: index + 1]
+        return removed
+
     def to_dict(self) -> dict:
         return {
             'uuid': self.uuid,
@@ -87,6 +99,11 @@ def parse_dt(value: str) -> datetime:
 def _created_at_from(data: dict) -> datetime:
     raw = data.get('created_at')
     return parse_dt(raw) if raw else datetime.now(UTC)
+
+
+def _id_from(data: dict) -> str:
+    raw = data.get('id')
+    return raw if isinstance(raw, str) and raw else str(uuid4())
 
 
 def _text_part(part: dict) -> str | None:
@@ -126,14 +143,14 @@ def message_from_dict(data: dict) -> HistoryMessage:
     match data['role']:
         case 'user':
             content, images = _user_parts(data['content'])
-            return UserMessage(content=content, images=images, created_at=_created_at_from(data))
+            return UserMessage(content=content, images=images, created_at=_created_at_from(data), id=_id_from(data))
         case 'summary':
-            return SummaryMessage(content=data['content'])
+            return SummaryMessage(content=data['content'], id=_id_from(data))
         case 'assistant':
             tool_calls = [ToolCall(id=tc['id'], type=tc['type'], name=tc['function']['name'], arguments=tc['function']['arguments']) for tc in data['tool_calls']] if data.get('tool_calls') else None
             usage = Usage(**data['usage']) if data.get('usage') else None
-            return AssistantMessage(content=data['content'], tool_calls=tool_calls, reasoning_content=data.get('reasoning_content'), usage=usage, created_at=_created_at_from(data))
+            return AssistantMessage(content=data['content'], tool_calls=tool_calls, reasoning_content=data.get('reasoning_content'), usage=usage, created_at=_created_at_from(data), id=_id_from(data))
         case 'tool':
-            return ToolMessage(tool_call_id=data['tool_call_id'], content=data['content'], tool_name=data.get('tool_name'), arguments=data.get('arguments'), created_at=_created_at_from(data))
+            return ToolMessage(tool_call_id=data['tool_call_id'], content=data['content'], tool_name=data.get('tool_name'), arguments=data.get('arguments'), created_at=_created_at_from(data), id=_id_from(data))
         case _:
-            return SystemMessage(content=data['content'], created_at=_created_at_from(data))
+            return SystemMessage(content=data['content'], created_at=_created_at_from(data), id=_id_from(data))
