@@ -13,6 +13,7 @@ Rules:
 - Omit: greetings, small talk, repeated explanations, and thinking content.
 """
 
+
 class CompactContext(BasePrompt):
     priority: int = -1
 

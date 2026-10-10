@@ -6,8 +6,8 @@ from openai import APIError
 from rqark_core.types.chat import AssistantMessage, ToolMessage, Usage, UserMessage
 from rqark_core.types.provider import Provider
 
-from rqark_app._app.helper import ChatHelper
 from rqark_app.app import AgentApp
+from rqark_app.compact import Compactor, is_context_overflow
 from rqark_app.provider.manager import ProviderManager
 from rqark_app.session.manager import SessionManager
 from rqark_app.session.storage import JSONLStorage
@@ -71,7 +71,7 @@ def scripted_core(monkeypatch):
     ScriptedCore.overflow_errors = 0
     ScriptedCore.summary = 'SUMMARY'
     monkeypatch.setattr('rqark_app.app.AgentCore', ScriptedCore)
-    monkeypatch.setattr('rqark_app._app.helper.AgentCore', ScriptedCore)
+    monkeypatch.setattr('rqark_app.compact.compactor.AgentCore', ScriptedCore)
     return ScriptedCore
 
 
@@ -151,7 +151,7 @@ async def test_context_overflow_retries_original_history_when_summary_unavailabl
     async def no_summary(_):
         return None
 
-    monkeypatch.setattr(app.chat_helper, 'get_summary', no_summary)
+    monkeypatch.setattr(app.compactor, 'get_summary', no_summary)
     session = await app.chat('hi', RetryAgent(), session_id='abc')
     main = scripted_core.instances[0]
     assert [[m.content for m in call[1]] for call in main.chat_calls] == [['hi'], ['hi']]
@@ -189,11 +189,8 @@ async def test_proactive_compression_ignores_tool_only_usage(scripted_core, inst
     assert len(scripted_core.instances) == 1
 
 
-def make_helper() -> ChatHelper:
-    async def emit(*args, **kwargs) -> None:
-        pass
-
-    return ChatHelper(ProviderManager([make_provider('p1', 0)]), SessionManager(), emit)
+def make_helper() -> Compactor:
+    return Compactor(ProviderManager([make_provider('p1', 0)]))
 
 
 def api_error(body: object, message: str = 'boom') -> APIError:
@@ -218,32 +215,28 @@ def test_needs_compression_uses_the_most_recent_usage():
 
 
 def test_is_context_overflow_detects_reported_provider_messages():
-    helper = make_helper()
-    assert helper.is_context_overflow(api_error(OVERFLOW_BODY)) is True
-    assert helper.is_context_overflow(api_error({'error': {'message': 'Maximum Context Length reached'}})) is True
-    assert helper.is_context_overflow(api_error({'error': {'message': 'Your request exceeded model token limit: 1048576 (requested: 1705112)'}})) is True
-    assert helper.is_context_overflow(api_error({'error': {'code': 'InvalidParameter', 'message': 'Input exceeds the context limit (1048568 tokens). Please shorten the input.'}})) is True
-    assert helper.is_context_overflow(api_error({'error': {'code': 'context_length_exceeded', 'message': 'nope'}})) is True
-    assert helper.is_context_overflow(api_error({'error': {'message': 'too many tokens'}})) is True
-    assert helper.is_context_overflow(api_error({'error': 'prompt is too long'}, message='prompt is too long')) is True
+    assert is_context_overflow(api_error(OVERFLOW_BODY)) is True
+    assert is_context_overflow(api_error({'error': {'message': 'Maximum Context Length reached'}})) is True
+    assert is_context_overflow(api_error({'error': {'message': 'Your request exceeded model token limit: 1048576 (requested: 1705112)'}})) is True
+    assert is_context_overflow(api_error({'error': {'code': 'InvalidParameter', 'message': 'Input exceeds the context limit (1048568 tokens). Please shorten the input.'}})) is True
+    assert is_context_overflow(api_error({'error': {'code': 'context_length_exceeded', 'message': 'nope'}})) is True
+    assert is_context_overflow(api_error({'error': {'message': 'too many tokens'}})) is True
+    assert is_context_overflow(api_error({'error': 'prompt is too long'}, message='prompt is too long')) is True
 
 
 def test_is_context_overflow_detects_413_status():
-    helper = make_helper()
-
     class OversizedError(APIError):
         status_code = 413
 
     error = OversizedError('too large', request=httpx.Request('POST', 'http://test'), body=None)
-    assert helper.is_context_overflow(error) is True
+    assert is_context_overflow(error) is True
 
 
 def test_is_context_overflow_rejects_other_errors():
-    helper = make_helper()
-    assert helper.is_context_overflow(api_error({'error': {'message': 'rate limit reached'}})) is False
-    assert helper.is_context_overflow(api_error({'error': {'message': 'Too Many Requests'}})) is False
-    assert helper.is_context_overflow(api_error(None)) is False
-    assert helper.is_context_overflow(api_error('plain string body')) is False
-    assert helper.is_context_overflow(api_error({'error': 'not a dict'})) is False
-    assert helper.is_context_overflow(api_error({'error': {'message': 42}})) is False
-    assert helper.is_context_overflow(RuntimeError('maximum context length')) is False
+    assert is_context_overflow(api_error({'error': {'message': 'rate limit reached'}})) is False
+    assert is_context_overflow(api_error({'error': {'message': 'Too Many Requests'}})) is False
+    assert is_context_overflow(api_error(None)) is False
+    assert is_context_overflow(api_error('plain string body')) is False
+    assert is_context_overflow(api_error({'error': 'not a dict'})) is False
+    assert is_context_overflow(api_error({'error': {'message': 42}})) is False
+    assert is_context_overflow(RuntimeError('maximum context length')) is False

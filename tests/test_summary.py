@@ -3,9 +3,8 @@ from openai import APIError
 from rqark_core.types.chat import AssistantMessage, ToolMessage, UserMessage
 from rqark_core.types.provider import Provider
 
-from rqark_app._app.helper import ChatHelper, _compact_messages
+from rqark_app.compact import Compactor, compact_messages
 from rqark_app.provider.manager import ProviderManager
-from rqark_app.session.manager import SessionManager
 from rqark_app.types.session import SummaryMessage
 
 
@@ -27,15 +26,11 @@ class FakeCompactCore:
         return [*messages, AssistantMessage('SUMMARY')], None
 
 
-async def _emit(*args, **kwargs) -> None:
-    pass
-
-
-def make_helper(monkeypatch, max_messages=100) -> ChatHelper:
+def make_helper(monkeypatch, max_messages=100) -> Compactor:
     FakeCompactCore.instances = []
     FakeCompactCore.max_messages = max_messages
-    monkeypatch.setattr('rqark_app._app.helper.AgentCore', FakeCompactCore)
-    return ChatHelper(ProviderManager([Provider('m', 'k', 'http://x', 0, name='p1')]), SessionManager(), _emit)
+    monkeypatch.setattr('rqark_app.compact.compactor.AgentCore', FakeCompactCore)
+    return Compactor(ProviderManager([Provider('m', 'k', 'http://x', 0, name='p1')]))
 
 
 def test_compact_messages_keeps_only_user_and_assistant_content():
@@ -48,7 +43,7 @@ def test_compact_messages_keeps_only_user_and_assistant_content():
         SummaryMessage('s1'),
         UserMessage('u2', images=['data:image/png;base64,xxxx']),
     ]
-    compacted = _compact_messages(history)
+    compacted = compact_messages(history)
     assert [type(m).__name__ for m in compacted] == ['UserMessage', 'AssistantMessage', 'UserMessage', 'UserMessage']
     assert [m.content for m in compacted] == ['u1', 'a1', 's1', 'u2']
     first, last = compacted[0], compacted[-1]

@@ -7,6 +7,7 @@ from rqark_core.types.tool import PlanItem
 
 from rqark_app._app.event import AgentAppEventEmitter
 from rqark_app._app.helper import ChatHelper
+from rqark_app.compact import Compactor, is_context_overflow
 from rqark_app.provider.manager import ProviderManager
 from rqark_app.session.manager import SessionManager
 from rqark_app.session.storage import SessionStorage
@@ -20,6 +21,7 @@ class AgentApp(AgentAppEventEmitter):
         self.provider_mgr = ProviderManager(providers)
         self.session_mgr = SessionManager(storage)
         self.chat_helper = ChatHelper(self.provider_mgr, self.session_mgr, self._emit)
+        self.compactor = Compactor(self.provider_mgr)
 
     def _connect_event(self, core: AgentCore):
         core.on_chunk()(self.handle_chunk_event)
@@ -45,9 +47,9 @@ class AgentApp(AgentAppEventEmitter):
         while True:
             provider = self.provider_mgr.provider
             # needs_compression
-            if self.chat_helper.needs_compression(history, provider):
+            if self.compactor.needs_compression(history, provider):
                 persisted = session.get_last_chunk_for_chat()
-                summary = await self.chat_helper.get_summary(persisted)
+                summary = await self.compactor.get_summary(persisted)
                 if summary:
                     session.history += [summary]
                     await self.session_mgr.save(session.uuid)
@@ -62,8 +64,8 @@ class AgentApp(AgentAppEventEmitter):
                 return session
             if not isinstance(error, APIError):
                 raise error
-            if self.chat_helper.is_context_overflow(error):
-                summary = await self.chat_helper.get_summary(session.get_last_chunk_for_chat())
+            if is_context_overflow(error):
+                summary = await self.compactor.get_summary(session.get_last_chunk_for_chat())
                 if summary:
                     session.history += [summary]
                     await self.session_mgr.save(session.uuid)
