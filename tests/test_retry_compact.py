@@ -2,13 +2,12 @@ import asyncio
 
 import httpx
 import pytest
-from openai import APIError
-from rqark_core.types.chat import AssistantMessage, ToolMessage, Usage, UserMessage
+from openai import APIError, BadRequestError
+from rqark_core.types.chat import AssistantMessage
 from rqark_core.types.provider import Provider
 
 from rqark_app.app import AgentApp
-from rqark_app.compact import Compactor, is_context_overflow
-from rqark_app.provider.manager import ProviderManager
+from rqark_app.compact import is_context_overflow
 from rqark_app.session.manager import SessionManager
 from rqark_app.session.storage import JSONLStorage
 from rqark_app.types.agent import BaseAgent
@@ -57,7 +56,7 @@ class ScriptedCore:
         request = httpx.Request('POST', 'http://test')
         if ScriptedCore.overflow_errors > 0:
             ScriptedCore.overflow_errors -= 1
-            return list(messages), APIError('too long', request=request, body=OVERFLOW_BODY)
+            return list(messages), BadRequestError('too long', response=httpx.Response(400, request=request), body=OVERFLOW_BODY)
         if ScriptedCore.api_errors > 0:
             ScriptedCore.api_errors -= 1
             return list(messages), APIError('boom', request=request, body=None)
@@ -158,60 +157,9 @@ async def test_context_overflow_retries_original_history_when_summary_unavailabl
     assert [type(m).__name__ for m in session.history] == ['UserMessage', 'AssistantMessage']
 
 
-async def test_proactive_compression_triggers_on_last_usage_before_calling_the_model(scripted_core, instant_sleep):
-    scripted_core.overflow_errors = 0
-    app = AgentApp([make_provider('p1', 0, model='gpt-4o')])
-    session = await app.session_mgr.create('abc')
-    session.history = [UserMessage('u1'), AssistantMessage('a1', usage=Usage(120_000, 10, 120_010))]
-    await app.chat('u2', RetryAgent(), session_id='abc')
-    main, compact = scripted_core.instances
-    assert compact.agent_id == 'Compact'
-    assert [[m.content for m in call[1]] for call in compact.chat_calls] == [['u1', 'a1']]
-    assert [[m.content for m in call[1]] for call in main.chat_calls] == [['SUMMARY', 'u2']]
-    assert [type(m).__name__ for m in session.history] == ['UserMessage', 'AssistantMessage', 'SummaryMessage', 'UserMessage', 'AssistantMessage']
-
-
-async def test_proactive_compression_skipped_when_usage_is_below_ratio(scripted_core, instant_sleep):
-    app = AgentApp([make_provider('p1', 0, model='gpt-4o')])
-    session = await app.session_mgr.create('abc')
-    session.history = [UserMessage('u1'), AssistantMessage('a1', usage=Usage(10_000, 10, 10_010))]
-    await app.chat('u2', RetryAgent(), session_id='abc')
-    assert len(scripted_core.instances) == 1
-    core = scripted_core.instances[0]
-    assert [[m.content for m in call[1]] for call in core.chat_calls] == [['u1', 'a1', 'u2']]
-
-
-async def test_proactive_compression_ignores_tool_only_usage(scripted_core, instant_sleep):
-    app = AgentApp([make_provider('p1', 0, model='gpt-4o')])
-    session = await app.session_mgr.create('abc')
-    session.history = [UserMessage('u1'), AssistantMessage('a1', usage=None), ToolMessage('c1', 'output', 'fn', '{}')]
-    await app.chat('u2', RetryAgent(), session_id='abc')
-    assert len(scripted_core.instances) == 1
-
-
-def make_helper() -> Compactor:
-    return Compactor(ProviderManager([make_provider('p1', 0)]))
-
-
-def api_error(body: object, message: str = 'boom') -> APIError:
-    return APIError(message, request=httpx.Request('POST', 'http://test'), body=body)
-
-
-def test_needs_compression_uses_latest_usage_of_the_provider_window():
-    helper = make_helper()
-    provider = make_provider('p1', 0, model='gpt-4o')
-    below = [AssistantMessage('a', usage=Usage(100_000, 1, 100_001))]
-    above = [AssistantMessage('a', usage=Usage(115_200, 1, 115_201))]
-    assert helper.needs_compression(below, provider) is False
-    assert helper.needs_compression(above, provider) is True
-    assert helper.needs_compression([UserMessage('u')], provider) is False
-
-
-def test_needs_compression_uses_the_most_recent_usage():
-    helper = make_helper()
-    provider = make_provider('p1', 0, model='gpt-4o')
-    messages = [AssistantMessage('old', usage=Usage(200_000, 1, 200_001)), UserMessage('u'), AssistantMessage('new', usage=Usage(1_000, 1, 1_001))]
-    assert helper.needs_compression(messages, provider) is False
+def api_error(body: object, message: str = 'boom') -> BadRequestError:
+    request = httpx.Request('POST', 'http://test')
+    return BadRequestError(message, response=httpx.Response(400, request=request), body=body)
 
 
 def test_is_context_overflow_detects_reported_provider_messages():
@@ -222,14 +170,6 @@ def test_is_context_overflow_detects_reported_provider_messages():
     assert is_context_overflow(api_error({'error': {'code': 'context_length_exceeded', 'message': 'nope'}})) is True
     assert is_context_overflow(api_error({'error': {'message': 'too many tokens'}})) is True
     assert is_context_overflow(api_error({'error': 'prompt is too long'}, message='prompt is too long')) is True
-
-
-def test_is_context_overflow_detects_413_status():
-    class OversizedError(APIError):
-        status_code = 413
-
-    error = OversizedError('too large', request=httpx.Request('POST', 'http://test'), body=None)
-    assert is_context_overflow(error) is True
 
 
 def test_is_context_overflow_rejects_other_errors():

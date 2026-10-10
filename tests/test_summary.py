@@ -84,7 +84,8 @@ async def test_get_summary_trims_from_the_tail_then_retries(monkeypatch):
     assert summary is not None
     core = FakeCompactCore.instances[0]
     assert [m.content for m in core.chat_calls[0]] == ['u1', 'a1', 's1', 'u2', 'a2', 'u3']
-    assert [m.content for m in core.chat_calls[1]] == ['u1', 'a1', 's1']
+    assert [m.content for m in core.chat_calls[1]] == ['u1', 'a1', 's1', 'u2', 'a2']
+    assert [m.content for m in core.chat_calls[-1]] == ['u1', 'a1', 's1']
 
 
 async def test_get_summary_keeps_trimming_towards_the_tail_until_it_fits(monkeypatch):
@@ -93,7 +94,7 @@ async def test_get_summary_keeps_trimming_towards_the_tail_until_it_fits(monkeyp
     summary = await helper.get_summary(history)
     assert summary is not None
     core = FakeCompactCore.instances[0]
-    assert [len(call) for call in core.chat_calls] == [8, 4, 2, 1]
+    assert [len(call) for call in core.chat_calls] == [8, 7, 6, 5, 4, 3, 2, 1]
     assert [m.content for m in core.chat_calls[-1]] == ['u0']
 
 

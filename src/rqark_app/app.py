@@ -46,28 +46,19 @@ class AgentApp(AgentAppEventEmitter):
     async def _loop(self, session: Session, core: AgentCore, agent: BaseAgent, history: list[Message]) -> Session:
         while True:
             provider = self.provider_mgr.provider
-            # needs_compression
-            if self.compactor.needs_compression(history, provider):
-                persisted = session.get_last_chunk_for_chat()
-                summary = await self.compactor.get_summary(persisted)
-                if summary:
-                    session.history += [summary]
-                    await self.session_mgr.save(session.uuid)
-                    in_flight = history[len(persisted) :] if len(history) > len(persisted) else []
-                    history = [*session.get_last_chunk_for_chat(), *in_flight]
-            #
             new_messages, error = await core.chat(provider, history, agent.prompts, agent.tools)
             history = list(new_messages)
             session.update_history_to_last_chunk(history)
             await self.session_mgr.save(session.uuid)
             if error is None:
                 return session
-            if not isinstance(error, APIError):
-                raise error
             if is_context_overflow(error):
                 summary = await self.compactor.get_summary(session.get_last_chunk_for_chat())
                 if summary:
                     session.history += [summary]
                     await self.session_mgr.save(session.uuid)
                     history = session.get_last_chunk_for_chat()
+                    continue
+            if not isinstance(error, APIError):
+                raise error
             await self.chat_helper.report_failure(core, provider)

@@ -1,5 +1,4 @@
 import asyncio
-import os
 
 from rqark_core.types.chat import AssistantMessage, Chunk, Message, ToolCall, ToolMessage, Usage, UserMessage
 from rqark_core.types.event import AgentPayload

@@ -9,7 +9,7 @@ from rqark_app.types.session import HistoryMessage, SummaryMessage
 def trim_tail(messages: list[Message]) -> list[Message] | None:
     if len(messages) <= 1:
         return None
-    return messages[: max(1, len(messages) // 2)]
+    return messages[: max(1, len(messages) - 1)]
 
 
 def compact_messages(messages: Sequence[HistoryMessage]) -> list[Message]:
