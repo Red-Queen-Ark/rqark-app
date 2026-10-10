@@ -19,14 +19,16 @@ Error code: 400 -
 OLLAMA_CONTEXT_LENGTH=2048 ollama serve
 """
 
-model_name = 'qwen3.5:9b' # 'deepseek-r1:8b'
+model_name = 'qwen3.5:9b'  # 'deepseek-r1:8b'
 provider = Provider(model_name, 'api_key', 'http://127.0.0.1:11434/v1', 0, combine=True, thinking='disabled')
 storage = JSONLStorage('./.sessions')
 app = AgentApp([provider], storage)
 
+
 @app.on_error()
 async def has_error(ev: AgentPayload[Chunk]):
     print(ev.payload)
+
 
 @app.on_message()
 async def message(ev: AgentPayload[Message]):
@@ -38,14 +40,10 @@ async def tool_result(ev: AgentPayload[ToolMessage]):
     print(ev.payload)
 
 
-_pytest_log = '\n'.join(
-    f'tests/test_retry_compact.py::test_case_{i:03d} FAILED - AssertionError: expected a Compact session, got None (prompt tokens {i * 37})'
-    for i in range(1, 121)
-)
+_pytest_log = '\n'.join(f'tests/test_retry_compact.py::test_case_{i:03d} FAILED - AssertionError: expected a Compact session, got None (prompt tokens {i * 37})' for i in range(1, 121))
 
 _grep_hits = '\n'.join(
-    f'src/rqark_app/compact/detect.py:{i}:    re.compile(r\'{pattern}\', re.IGNORECASE),'
-    for i, pattern in enumerate(['prompt is too long', 'request_too_large', 'input is too long', 'maximum context length', 'too many tokens'], start=5)
+    f"src/rqark_app/compact/detect.py:{i}:    re.compile(r'{pattern}', re.IGNORECASE)," for i, pattern in enumerate(['prompt is too long', 'request_too_large', 'input is too long', 'maximum context length', 'too many tokens'], start=5)
 )
 
 _source = '\n'.join(
@@ -74,29 +72,14 @@ _history: list[Message] = [
     UserMessage('今日的工作是什麽？'),
     AssistantMessage('今天的工作包括:\n1. 調查AI巿場情況。\n2. 下午三點和 Diana 開會討論Red Queen Ark 計劃最新發展方向。'),
     UserMessage('先幫我睇下 rqark-app 而家嘅 test 情況。'),
-    AssistantMessage(
-        '',
-        tool_calls=[ToolCall('call_1', 'function', 'exec', '{"command": "uv run pytest -q"}')],
-    ),
+    AssistantMessage('', tool_calls=[ToolCall('call_1', 'function', 'exec', '{"command": "uv run pytest -q"}')]),
     ToolMessage('call_1', _pytest_log, 'exec', '{"command": "uv run pytest -q"}'),
-    AssistantMessage(
-        '測試好差，120 個 case 全部 fail，全部都係壓縮相關嘅 assert。我去睇下 detect.py 同 app.py。',
-        usage=Usage(prompt_tokens=3812, completion_tokens=96, total_tokens=3908),
-    ),
+    AssistantMessage('測試好差，120 個 case 全部 fail，全部都係壓縮相關嘅 assert。我去睇下 detect.py 同 app.py。', usage=Usage(prompt_tokens=3812, completion_tokens=96, total_tokens=3908)),
     UserMessage('好，順手搵埋邊度寫住 context overflow。'),
-    AssistantMessage(
-        '',
-        tool_calls=[ToolCall('call_2', 'function', 'grep', '{"pattern": "context", "path": "src/rqark_app"}')],
-    ),
+    AssistantMessage('', tool_calls=[ToolCall('call_2', 'function', 'grep', '{"pattern": "context", "path": "src/rqark_app"}')]),
     ToolMessage('call_2', _grep_hits, 'grep', '{"pattern": "context", "path": "src/rqark_app"}'),
-    AssistantMessage(
-        '搵到咗，全部 pattern 都係集中喺 compact/detect.py。',
-        usage=Usage(prompt_tokens=4004, completion_tokens=64, total_tokens=4068),
-    ),
-    AssistantMessage(
-        '',
-        tool_calls=[ToolCall('call_3', 'function', 'read_file', '{"path": "src/rqark_app/app.py"}')],
-    ),
+    AssistantMessage('搵到咗，全部 pattern 都係集中喺 compact/detect.py。', usage=Usage(prompt_tokens=4004, completion_tokens=64, total_tokens=4068)),
+    AssistantMessage('', tool_calls=[ToolCall('call_3', 'function', 'read_file', '{"path": "src/rqark_app/app.py"}')]),
     ToolMessage('call_3', _source, 'read_file', '{"path": "src/rqark_app/app.py"}'),
     UserMessage('噢，今日個會議我想取消'),
     AssistantMessage('明白，我幫你聯絡 Diana。'),

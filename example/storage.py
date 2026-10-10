@@ -54,5 +54,6 @@ async def main():
     content = '頭先問咗咩?'
     session = await app.chat(content, Wednesday(), session.uuid)
 
+
 if __name__ == '__main__':
     asyncio.run(main())

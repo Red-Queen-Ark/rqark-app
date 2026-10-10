@@ -11,6 +11,7 @@ Rules:
 - Use the same language as the message.
 """
 
+
 class GentTilte(BasePrompt):
     priority: int = -1
 

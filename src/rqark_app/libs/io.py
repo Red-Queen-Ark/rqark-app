@@ -12,7 +12,7 @@ class IoHelper:
         file_suffix = _path.suffix
         if file_suffix == '.json':
             return self._read_json(_path)
-        elif file_suffix in [ '.yml', '.yaml']:
+        elif file_suffix in ['.yml', '.yaml']:
             return self._read_yaml(_path)
 
     def save(self, path: str | Path, data: dict | list):
@@ -20,7 +20,7 @@ class IoHelper:
         file_suffix = _path.suffix
         if file_suffix == '.json':
             return self._save_json(_path, data)
-        elif file_suffix in [ '.yml', '.yaml']:
+        elif file_suffix in ['.yml', '.yaml']:
             return self._save_yaml(_path, data)
 
     def _read_json(self, path: Path):

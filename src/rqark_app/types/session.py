@@ -8,6 +8,7 @@ from rqark_core.types.tool import PlanItem
 
 type HistoryMessage = Message | SummaryMessage
 
+
 @dataclass
 class SummaryMessage:
     content: str
@@ -19,6 +20,7 @@ class SummaryMessage:
 
     def to_message(self) -> UserMessage:
         return UserMessage(self.content)
+
 
 @dataclass
 class Session:
@@ -43,7 +45,7 @@ class Session:
         return chunks
 
     def get_last_chunk_for_chat(self) -> list[Message]:
-        return [ m.to_message() if isinstance(m, SummaryMessage) else m for m in self.get_last_chunk() ]
+        return [m.to_message() if isinstance(m, SummaryMessage) else m for m in self.get_last_chunk()]
 
     def get_last_chunk(self) -> list[HistoryMessage]:
         chunks = self.history_chunk

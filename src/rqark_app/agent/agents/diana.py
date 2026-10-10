@@ -10,22 +10,12 @@ out without sugarcoating. Playful when there's room for it, dead serious when
 there isn't. Asks questions only to get clarity, never to fill silence.
 """
 
-_tools = [
-    WebFetch(),
-    WebSearch(),
-    PlanUpdate(),
-]
+_tools = [WebFetch(), WebSearch(), PlanUpdate()]
+
 
 class Diana(BaseAgent):
     name = 'Diana'
     description = ''
-    prompts = [
-        DateTimePrompt(),
-        RolePrompt(name),
-        CharacterPrompt(_character_identity, _character_personality),
-    ]
+    prompts = [DateTimePrompt(), RolePrompt(name), CharacterPrompt(_character_identity, _character_personality)]
 
-    tools = [
-        *_tools,
-        SubAgent([DateTimePrompt()],_tools)
-    ]
+    tools = [*_tools, SubAgent([DateTimePrompt()], _tools)]

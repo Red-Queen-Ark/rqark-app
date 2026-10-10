@@ -173,11 +173,14 @@ async def test_jsonl_storage_roundtrip(tmp_path):
 async def test_jsonl_storage_loads_legacy_files_without_message_timestamps(tmp_path):
     file = tmp_path / 'legacy.jsonl'
     file.write_text(
-        '\n'.join([
-            '{"uuid": "legacy", "created_at": "2026-01-01T00:00:00+00:00", "updated_at": "2026-01-01T00:00:00+00:00", "title": "", "plan_items": []}',
-            '{"role": "user", "content": "hi"}',
-            '{"role": "assistant", "content": "yo", "tool_calls": [{"id": "c1", "type": "function", "function": {"name": "fn", "arguments": "{}"}}]}',
-        ]) + '\n',
+        '\n'.join(
+            [
+                '{"uuid": "legacy", "created_at": "2026-01-01T00:00:00+00:00", "updated_at": "2026-01-01T00:00:00+00:00", "title": "", "plan_items": []}',
+                '{"role": "user", "content": "hi"}',
+                '{"role": "assistant", "content": "yo", "tool_calls": [{"id": "c1", "type": "function", "function": {"name": "fn", "arguments": "{}"}}]}',
+            ]
+        )
+        + '\n',
         encoding='utf-8',
     )
     loaded = await JSONLStorage(tmp_path).load()

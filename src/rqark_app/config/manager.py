@@ -65,6 +65,7 @@ def _build_tool(info: dict) -> BaseTool:
 def _build_provider(info: dict) -> Provider:
     return Provider(**{key: value for key, value in info.items() if key in PROVIDER_FIELDS})
 
+
 def _build_agent(agent_info: dict) -> BaseAgent:
     agent = BaseAgent()
     agent.name = agent_info['name']
@@ -72,6 +73,7 @@ def _build_agent(agent_info: dict) -> BaseAgent:
     agent.prompts = [_build_prompt(p) for p in agent_info.get('prompts', [])]
     agent.tools = [_build_tool(t) for t in agent_info.get('tools', [])]
     return agent
+
 
 class ConfigManager:
     def __init__(self, config_path: str, cloud_transport: httpx.AsyncBaseTransport | None = None):

@@ -96,10 +96,7 @@ async def test_chat_accepts_images_without_text(fake_core):
     message = sent_user_message(fake_core.instances[0])
     assert message.content == ''
     assert message.images == ['data:image/png;base64,AAA']
-    assert message.to_dict()['content'] == [
-        {'type': 'text', 'text': ''},
-        {'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,AAA'}},
-    ]
+    assert message.to_dict()['content'] == [{'type': 'text', 'text': ''}, {'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,AAA'}}]
 
 
 async def test_chat_copies_caller_image_list(fake_core):
@@ -128,10 +125,7 @@ async def test_chat_persists_images_across_reload(fake_core, tmp_path):
     message = next(m for m in mgr.sessions_map['abc'].history if isinstance(m, UserMessage))
     assert message.content == 'look'
     assert message.images == ['data:image/png;base64,AAA']
-    assert message.to_dict()['content'] == [
-        {'type': 'text', 'text': 'look'},
-        {'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,AAA'}},
-    ]
+    assert message.to_dict()['content'] == [{'type': 'text', 'text': 'look'}, {'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,AAA'}}]
 
 
 async def test_chat_keeps_images_when_provider_retries(fake_core, monkeypatch):
@@ -164,13 +158,7 @@ async def test_jsonl_storage_roundtrip_preserves_user_images(tmp_path):
 
 async def test_jsonl_storage_keeps_legacy_string_user_content(tmp_path):
     file = tmp_path / 'legacy.jsonl'
-    file.write_text(
-        '\n'.join([
-            '{"uuid": "legacy", "created_at": "2026-01-01T00:00:00+00:00", "updated_at": "2026-01-01T00:00:00+00:00", "title": "", "plan_items": []}',
-            '{"role": "user", "content": "hi"}',
-        ]) + '\n',
-        encoding='utf-8',
-    )
+    file.write_text('\n'.join(['{"uuid": "legacy", "created_at": "2026-01-01T00:00:00+00:00", "updated_at": "2026-01-01T00:00:00+00:00", "title": "", "plan_items": []}', '{"role": "user", "content": "hi"}']) + '\n', encoding='utf-8')
     s = (await JSONLStorage(tmp_path).load())[0]
     assert isinstance(s.history[0], UserMessage)
     assert s.history[0].content == 'hi'
@@ -180,10 +168,13 @@ async def test_jsonl_storage_keeps_legacy_string_user_content(tmp_path):
 async def test_jsonl_storage_separates_multiple_text_parts(tmp_path):
     file = tmp_path / 'multi.jsonl'
     file.write_text(
-        '\n'.join([
-            '{"uuid": "multi", "created_at": "2026-01-01T00:00:00+00:00", "updated_at": "2026-01-01T00:00:00+00:00", "title": "", "plan_items": []}',
-            '{"role": "user", "content": [{"type": "text", "text": "a"}, {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAA"}}, {"type": "text", "text": "b"}]}',
-        ]) + '\n',
+        '\n'.join(
+            [
+                '{"uuid": "multi", "created_at": "2026-01-01T00:00:00+00:00", "updated_at": "2026-01-01T00:00:00+00:00", "title": "", "plan_items": []}',
+                '{"role": "user", "content": [{"type": "text", "text": "a"}, {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAA"}}, {"type": "text", "text": "b"}]}',
+            ]
+        )
+        + '\n',
         encoding='utf-8',
     )
     s = (await JSONLStorage(tmp_path).load())[0]
@@ -195,10 +186,12 @@ async def test_jsonl_storage_separates_multiple_text_parts(tmp_path):
 async def test_jsonl_storage_ignores_malformed_user_parts(tmp_path):
     file = tmp_path / 'malformed.jsonl'
     file.write_text(
-        '\n'.join([
-            '{"uuid": "malformed", "created_at": "2026-01-01T00:00:00+00:00", "updated_at": "2026-01-01T00:00:00+00:00", "title": "", "plan_items": []}',
-            '{"role": "user", "content": ["text", {"type": "text", "text": null}, {"type": "text", "text": "kept"}, {"type": "image_url", "image_url": "data:image/png;base64,AAA"}, {"type": "image_url", "image_url": {"url": 1}}, {"type": "image_url", "image_url": {"url": "data:image/png;base64,BBB"}}, {"type": "audio", "text": "x"}]}',
-        ])
+        '\n'.join(
+            [
+                '{"uuid": "malformed", "created_at": "2026-01-01T00:00:00+00:00", "updated_at": "2026-01-01T00:00:00+00:00", "title": "", "plan_items": []}',
+                '{"role": "user", "content": ["text", {"type": "text", "text": null}, {"type": "text", "text": "kept"}, {"type": "image_url", "image_url": "data:image/png;base64,AAA"}, {"type": "image_url", "image_url": {"url": 1}}, {"type": "image_url", "image_url": {"url": "data:image/png;base64,BBB"}}, {"type": "audio", "text": "x"}]}',
+            ]
+        )
         + '\n',
         encoding='utf-8',
     )
@@ -210,14 +203,7 @@ async def test_jsonl_storage_ignores_malformed_user_parts(tmp_path):
 
 async def test_jsonl_storage_handles_non_string_non_list_user_content(tmp_path):
     file = tmp_path / 'scalar.jsonl'
-    file.write_text(
-        '\n'.join([
-            '{"uuid": "scalar", "created_at": "2026-01-01T00:00:00+00:00", "updated_at": "2026-01-01T00:00:00+00:00", "title": "", "plan_items": []}',
-            '{"role": "user", "content": 42}',
-        ])
-        + '\n',
-        encoding='utf-8',
-    )
+    file.write_text('\n'.join(['{"uuid": "scalar", "created_at": "2026-01-01T00:00:00+00:00", "updated_at": "2026-01-01T00:00:00+00:00", "title": "", "plan_items": []}', '{"role": "user", "content": 42}']) + '\n', encoding='utf-8')
     s = (await JSONLStorage(tmp_path).load())[0]
     assert isinstance(s.history[0], UserMessage)
     assert s.history[0].content == ''
