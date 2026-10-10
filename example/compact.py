@@ -18,12 +18,10 @@ Error code: 400 -
 
 """
 OLLAMA_CONTEXT_LENGTH=2048 ollama serve
-OVERFLOW_MAX_TOKENS=4096 uv run python example/overflow_proxy.py
-RQARK_API_BASE=http://127.0.0.1:11500/v1 uv run python example/compact.py
 """
 
 model_name = 'qwen3.5:9b' # 'deepseek-r1:8b'
-provider = Provider(model_name, 'api_key', 'http://127.0.0.1:11500/v1', 0, combine=True, thinking='disabled')
+provider = Provider(model_name, 'api_key', 'http://127.0.0.1:11434/v1', 0, combine=True, thinking='disabled')
 storage = JSONLStorage('./.sessions')
 app = AgentApp([provider], storage)
 
