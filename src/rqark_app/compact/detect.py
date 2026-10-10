@@ -1,6 +1,6 @@
 import re
 
-from openai import APIError
+from openai import BadRequestError
 
 _CONTEXT_OVERFLOW_PATTERNS = (
     re.compile(r'prompt is too long', re.IGNORECASE),
@@ -41,14 +41,12 @@ _CONTEXT_OVERFLOW_EXCLUSIONS = (
 
 
 def is_context_overflow(error: Exception) -> bool:
-    if not isinstance(error, APIError):
+    if not isinstance(error, BadRequestError):
         return False
-    if getattr(error, 'status_code', None) == 413:
-        return True
     body = error.body
     if not isinstance(body, dict):
         return False
-    raw = body.get('error')
+    raw = body.get('error', body)
     message = ''
     code = ''
     if isinstance(raw, dict):
