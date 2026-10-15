@@ -36,7 +36,11 @@ uv add rqark-app
 管理多個 Provider，按優先次序排列。當目前 Provider 連續失敗 3 次，會自動切換到下一個。
 
 #### Agents Manager
-管理 Agent 序列，提供當前 Agent 讀取 (`agent`) 同手動切換 (`switch_to`)。
+管理 Agent 序列，提供當前 Agent 讀取 (`agent`) 同手動切換 (`switch_to`)。可選傳入 `default` 令預設 Agent 一開始就係當前 Agent。
+
+```python
+agent_mgr = AgentManager(config_mgr.agents, config_mgr.default_agent)
+```
 
 #### Session Manager
 - 管理對話 Session，可選配 `SessionStorage` 持久化
@@ -57,6 +61,24 @@ try:
     await config_mgr.load()
 except DataCloudError as error:
     print(f'載入設定失敗: {error.message} ({error.code})')
+```
+
+##### Agent Defaults
+每個用戶每個 `source`（同 `sessions.source` 同一套值）可以有一個默認 Agent，雲端存住，跨 client 共用。
+
+- 開 `ConfigManager` 時傳 `source`，`load()` 就會順手讀返嗰個 source 嘅默認 Agent 落 `default_agent`（冇設過、或者指向已經唔存在嘅 Agent 都係 `None`）
+- 本地檔案模式（cloud 未啟用）或者冇傳 `source` 都唔會發請求
+- `set_default_agent(agent)` 同 `clear_default_agent()` 寫返上雲端；`agent` 一定要係 cloud 嚟嘅（本地 agent 冇 id，會拋 `ValueError`）
+
+```python
+from pathlib import Path
+
+from rqark_app.agent.manager import AgentManager
+from rqark_app.config.manager import ConfigManager
+
+config_mgr = ConfigManager(str(Path.home() / '.rqark'), source='TUI')
+await config_mgr.load()
+agent_mgr = AgentManager(config_mgr.agents, config_mgr.default_agent)
 ```
 
 ### Agent App

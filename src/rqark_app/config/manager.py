@@ -8,7 +8,7 @@ from rqark_core.types.prompt import BasePrompt
 from rqark_core.types.provider import Provider
 from rqark_core.types.tool import BaseTool
 
-from rqark_app.cloud.client import RQArkDataCloudClient
+from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
 from rqark_app.config.default import AGENTS, CLOUD, PROVIDERS
 from rqark_app.config.dir_cache import DirCache
 from rqark_app.libs.io import IoHelper
@@ -68,6 +68,7 @@ def _build_provider(info: dict) -> Provider:
 
 def _build_agent(agent_info: dict) -> BaseAgent:
     agent = BaseAgent()
+    agent.id = str(agent_info.get('id') or '')
     agent.name = agent_info['name']
     agent.description = agent_info.get('description', '')
     agent.prompts = [_build_prompt(p) for p in agent_info.get('prompts', [])]
@@ -76,13 +77,15 @@ def _build_agent(agent_info: dict) -> BaseAgent:
 
 
 class ConfigManager:
-    def __init__(self, config_path: str, cloud_transport: httpx.AsyncBaseTransport | None = None):
+    def __init__(self, config_path: str, cloud_transport: httpx.AsyncBaseTransport | None = None, source: str = ''):
         self.io_helper = IoHelper()
         self.config_path = Path(config_path)
         self.cloud_transport = cloud_transport
+        self.source = source
 
         self.agents: Sequence[BaseAgent] = []
         self.providers: list[Provider] = []
+        self.default_agent: BaseAgent | None = None
 
         self.dir_cache = DirCache(self.config_path)
         self.cwd_hash = self.dir_cache.compute_hash(Path.cwd())
@@ -93,11 +96,24 @@ class ConfigManager:
         self.config_path.mkdir(parents=True, exist_ok=True)
         self._load_cloud()
         await self._load_agents()
+        await self._load_default_agent()
         await self._load_providers()
 
     async def aclose(self):
         if self.cloud_client is not None:
             await self.cloud_client.aclose()
+
+    async def set_default_agent(self, agent: BaseAgent) -> None:
+        client = self._agent_default_client()
+        if not agent.id:
+            raise ValueError('a default agent has to come from the data cloud')
+        await client.set_agent_default(self._default_source(), agent.id)
+        self.default_agent = agent
+
+    async def clear_default_agent(self) -> bool:
+        cleared = await self._agent_default_client().delete_agent_default(self._default_source())
+        self.default_agent = None
+        return cleared
 
     def _load_cloud(self):
         path = self.config_path / 'cloud.yml'
@@ -136,6 +152,29 @@ class ConfigManager:
             created = await client.create_agent(agent.to_dict())
             agents.append(_build_agent(created) if created else agent)
         return agents
+
+    async def _load_default_agent(self):
+        if self.cloud_client is None or not self.source:
+            return
+        info = await self.cloud_client.get_agent_default(self.source)
+        if info:
+            self.default_agent = self._agent_with_id(info.get('agent_id') or '')
+
+    def _agent_with_id(self, agent_id: str) -> BaseAgent | None:
+        for agent in self.agents:
+            if agent.id and agent.id == agent_id:
+                return agent
+        return None
+
+    def _agent_default_client(self) -> RQArkDataCloudClient:
+        if self.cloud_client is None:
+            raise DataCloudError(0, 'NOT_CONFIGURED', 'agent defaults need a configured data cloud')
+        return self.cloud_client
+
+    def _default_source(self) -> str:
+        if not self.source:
+            raise ValueError('agent defaults need a source')
+        return self.source
 
     def _create_default_agent_config(self, path: Path):
         for a in AGENTS:

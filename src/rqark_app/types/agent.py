@@ -14,6 +14,7 @@ def _without_empty_params(value: Any) -> Any:
 
 
 class BaseAgent:
+    id: str = ''
     name: str
     description: str
     prompts: Sequence[BasePrompt]
