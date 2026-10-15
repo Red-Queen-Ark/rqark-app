@@ -3,7 +3,9 @@ import json
 from pathlib import Path
 
 import httpx
+import pytest
 
+from rqark_app.cloud.client import DataCloudError
 from rqark_app.config.default import AGENTS, CLOUD
 from rqark_app.config.manager import ConfigManager
 from rqark_app.libs.io import IoHelper
@@ -210,3 +212,160 @@ async def test_the_created_cloud_file_keeps_the_local_flow(tmp_path: Path):
 
     assert config_mgr.cloud_client is None
     assert [agent.name for agent in config_mgr.agents] == ['Diana']
+
+
+def default_transport(state: dict) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == '/api/agents':
+            return httpx.Response(200, json=[CLOUD_AGENT])
+        if request.url.path == '/api/providers':
+            return httpx.Response(200, json=[])
+        if request.url.path == '/api/agent-defaults/TUI':
+            state['calls'].append(request)
+            if request.method == 'PUT':
+                state['default'] = json.loads(request.content)
+            if request.method == 'DELETE':
+                state['default'] = None
+                return httpx.Response(204)
+            if state['default'] is None:
+                return httpx.Response(404, json={'error': {'code': 'NOT_FOUND', 'message': 'Agent default not found.'}})
+            return httpx.Response(200, json={'id': 'd1', 'source': 'TUI', **state['default']})
+        return httpx.Response(404, json={'error': {'code': 'NOT_FOUND', 'message': request.url.path}})
+
+    return httpx.MockTransport(handler)
+
+
+async def test_a_cloud_agent_carries_its_id(tmp_path: Path):
+    (config_dir(tmp_path) / 'cloud.yml').write_text(CLOUD_YML, encoding='utf-8')
+
+    config_mgr = ConfigManager(str(tmp_path), cloud_transport=default_transport({'default': None, 'calls': []}))
+    await config_mgr.load()
+    try:
+        assert config_mgr.agents[0].id == CLOUD_AGENT['id']
+    finally:
+        await config_mgr.aclose()
+
+
+def test_a_local_agent_has_no_id(tmp_path: Path):
+    (config_dir(tmp_path) / 'agents' / 'Diana.yml').write_text(DIANA_YML, encoding='utf-8')
+
+    assert load(tmp_path).agents[0].id == ''
+
+
+async def test_no_default_is_read_without_a_source(tmp_path: Path):
+    (config_dir(tmp_path) / 'cloud.yml').write_text(CLOUD_YML, encoding='utf-8')
+    state: dict = {'default': {'agent_id': CLOUD_AGENT['id']}, 'calls': []}
+
+    config_mgr = ConfigManager(str(tmp_path), cloud_transport=default_transport(state))
+    await config_mgr.load()
+    try:
+        assert config_mgr.default_agent is None
+        assert state['calls'] == []
+    finally:
+        await config_mgr.aclose()
+
+
+async def test_the_default_of_the_source_is_loaded(tmp_path: Path):
+    (config_dir(tmp_path) / 'cloud.yml').write_text(CLOUD_YML, encoding='utf-8')
+    state: dict = {'default': {'agent_id': CLOUD_AGENT['id']}, 'calls': []}
+
+    config_mgr = ConfigManager(str(tmp_path), cloud_transport=default_transport(state), source='TUI')
+    await config_mgr.load()
+    try:
+        assert config_mgr.default_agent is config_mgr.agents[0]
+        assert [request.method for request in state['calls']] == ['GET']
+    finally:
+        await config_mgr.aclose()
+
+
+async def test_a_source_without_a_default_has_none(tmp_path: Path):
+    (config_dir(tmp_path) / 'cloud.yml').write_text(CLOUD_YML, encoding='utf-8')
+    state: dict = {'default': None, 'calls': []}
+
+    config_mgr = ConfigManager(str(tmp_path), cloud_transport=default_transport(state), source='TUI')
+    await config_mgr.load()
+    try:
+        assert config_mgr.default_agent is None
+    finally:
+        await config_mgr.aclose()
+
+
+async def test_a_default_pointing_at_an_agent_the_cloud_no_longer_serves_is_ignored(tmp_path: Path):
+    (config_dir(tmp_path) / 'cloud.yml').write_text(CLOUD_YML, encoding='utf-8')
+    state: dict = {'default': {'agent_id': '049e9b11-0000-4b97-92a5-000000000000'}, 'calls': []}
+
+    config_mgr = ConfigManager(str(tmp_path), cloud_transport=default_transport(state), source='TUI')
+    await config_mgr.load()
+    try:
+        assert config_mgr.default_agent is None
+    finally:
+        await config_mgr.aclose()
+
+
+async def test_setting_a_default_puts_the_agent_id(tmp_path: Path):
+    (config_dir(tmp_path) / 'cloud.yml').write_text(CLOUD_YML, encoding='utf-8')
+    state: dict = {'default': None, 'calls': []}
+
+    config_mgr = ConfigManager(str(tmp_path), cloud_transport=default_transport(state), source='TUI')
+    await config_mgr.load()
+    try:
+        agent = config_mgr.agents[0]
+        await config_mgr.set_default_agent(agent)
+
+        assert config_mgr.default_agent is agent
+        assert [request.method for request in state['calls']] == ['GET', 'PUT']
+        assert json.loads(state['calls'][1].content) == {'agent_id': CLOUD_AGENT['id']}
+    finally:
+        await config_mgr.aclose()
+
+
+async def test_clearing_a_default_deletes_it(tmp_path: Path):
+    (config_dir(tmp_path) / 'cloud.yml').write_text(CLOUD_YML, encoding='utf-8')
+    state: dict = {'default': {'agent_id': CLOUD_AGENT['id']}, 'calls': []}
+
+    config_mgr = ConfigManager(str(tmp_path), cloud_transport=default_transport(state), source='TUI')
+    await config_mgr.load()
+    try:
+        assert await config_mgr.clear_default_agent() is True
+
+        assert config_mgr.default_agent is None
+        assert [request.method for request in state['calls']] == ['GET', 'DELETE']
+    finally:
+        await config_mgr.aclose()
+
+
+async def test_a_local_agent_cannot_be_a_default(tmp_path: Path):
+    (config_dir(tmp_path) / 'cloud.yml').write_text(CLOUD_YML, encoding='utf-8')
+    state: dict = {'default': None, 'calls': []}
+
+    config_mgr = ConfigManager(str(tmp_path), cloud_transport=default_transport(state), source='TUI')
+    await config_mgr.load()
+    try:
+        with pytest.raises(ValueError):
+            await config_mgr.set_default_agent(AGENTS[0])
+    finally:
+        await config_mgr.aclose()
+
+
+async def test_a_default_cannot_be_set_without_a_source(tmp_path: Path):
+    (config_dir(tmp_path) / 'cloud.yml').write_text(CLOUD_YML, encoding='utf-8')
+    state: dict = {'default': None, 'calls': []}
+
+    config_mgr = ConfigManager(str(tmp_path), cloud_transport=default_transport(state))
+    await config_mgr.load()
+    try:
+        with pytest.raises(ValueError):
+            await config_mgr.set_default_agent(config_mgr.agents[0])
+    finally:
+        await config_mgr.aclose()
+
+
+async def test_a_default_needs_a_configured_cloud(tmp_path: Path):
+    (config_dir(tmp_path) / 'agents' / 'Diana.yml').write_text(DIANA_YML, encoding='utf-8')
+
+    config_mgr = ConfigManager(str(tmp_path), source='TUI')
+    await config_mgr.load()
+
+    with pytest.raises(DataCloudError) as info:
+        await config_mgr.set_default_agent(config_mgr.agents[0])
+    assert info.value.code == 'NOT_CONFIGURED'

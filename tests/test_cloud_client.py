@@ -218,3 +218,90 @@ async def test_update_session_merges_the_source_into_the_payload(build_client):
     await client.update_session('s1', {'title': 'spec'}, source='AGENT_CLOUD')
 
     assert json.loads(calls[0].content) == {'title': 'spec', 'source': 'AGENT_CLOUD'}
+
+
+async def test_list_agent_defaults_reads_the_whole_array(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=[{'id': 'd1', 'source': 'TUI', 'agent_id': 'a1'}])
+
+    client = build_client(handler)
+    defaults = await client.list_agent_defaults()
+
+    assert [entry['source'] for entry in defaults] == ['TUI']
+    assert calls[0].url.path == '/api/agent-defaults'
+    assert not calls[0].url.params
+
+
+async def test_get_agent_default_reads_one_source(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={'id': 'd1', 'source': 'TUI', 'agent_id': 'a1'})
+
+    client = build_client(handler)
+
+    assert await client.get_agent_default('TUI') == {'id': 'd1', 'source': 'TUI', 'agent_id': 'a1'}
+    assert calls[0].url.path == '/api/agent-defaults/TUI'
+
+
+async def test_get_agent_default_is_none_when_the_source_has_none(build_client):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, json={'error': {'code': 'NOT_FOUND', 'message': 'Agent default not found.'}})
+
+    client = build_client(handler)
+
+    assert await client.get_agent_default('TUI') is None
+
+
+async def test_get_agent_default_raises_on_another_error(build_client):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, json={'error': {'code': 'UNAUTHORIZED', 'message': 'nope'}})
+
+    client = build_client(handler)
+
+    with pytest.raises(DataCloudError) as info:
+        await client.get_agent_default('TUI')
+    assert info.value.code == 'UNAUTHORIZED'
+
+
+async def test_set_agent_default_puts_the_agent_id(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={'id': 'd1', 'source': 'TUI', 'agent_id': 'a1'})
+
+    client = build_client(handler)
+    default = await client.set_agent_default('TUI', 'a1')
+
+    assert default['agent_id'] == 'a1'
+    assert calls[0].method == 'PUT'
+    assert calls[0].url.path == '/api/agent-defaults/TUI'
+    assert json.loads(calls[0].content) == {'agent_id': 'a1'}
+
+
+async def test_delete_agent_default_reports_whether_it_was_there(build_client):
+    responses = [httpx.Response(204), httpx.Response(404, json={'error': {'code': 'NOT_FOUND', 'message': 'Agent default not found.'}})]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return responses.pop(0)
+
+    client = build_client(handler)
+
+    assert await client.delete_agent_default('TUI') is True
+    assert await client.delete_agent_default('TUI') is False
+
+
+async def test_delete_agent_default_raises_on_another_error(build_client):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, json={'error': {'code': 'INTERNAL', 'message': 'boom'}})
+
+    client = build_client(handler)
+
+    with pytest.raises(DataCloudError) as info:
+        await client.delete_agent_default('TUI')
+    assert info.value.status_code == 500

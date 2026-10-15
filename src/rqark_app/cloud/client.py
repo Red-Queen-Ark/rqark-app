@@ -99,6 +99,29 @@ class RQArkDataCloudClient:
     async def list_session_messages(self, uuid: str, limit: int | None = None, offset: int | None = None) -> list[dict]:
         return await self._list(f'sessions/{uuid}/messages', limit, offset)
 
+    async def list_agent_defaults(self) -> list[dict]:
+        return await self._list('agent-defaults', None, None)
+
+    async def get_agent_default(self, source: str) -> dict | None:
+        try:
+            return self._json(await self.request('GET', f'agent-defaults/{source}')) or {}
+        except DataCloudError as error:
+            if error.status_code == 404:
+                return None
+            raise
+
+    async def set_agent_default(self, source: str, agent_id: str) -> dict:
+        return self._json(await self.request('PUT', f'agent-defaults/{source}', json={'agent_id': agent_id})) or {}
+
+    async def delete_agent_default(self, source: str) -> bool:
+        try:
+            await self.request('DELETE', f'agent-defaults/{source}')
+        except DataCloudError as error:
+            if error.status_code == 404:
+                return False
+            raise
+        return True
+
     def _headers(self) -> dict[str, str]:
         return {'Authorization': f'Bearer {self.config.api_key}'}
 

@@ -4,10 +4,21 @@ from rqark_app.types.agent import BaseAgent
 
 
 class AgentManager:
-    def __init__(self, agents: Sequence[BaseAgent]):
+    def __init__(self, agents: Sequence[BaseAgent], default: BaseAgent | None = None):
         self.agents: Sequence[BaseAgent] = agents
-        self.cur_index = 0
+        self.cur_index = self._index_of(default)
         self.retry: int = 0
+
+    def _index_of(self, default: BaseAgent | None) -> int:
+        if default is None:
+            return 0
+        for index, agent in enumerate(self.agents):
+            if agent is default:
+                return index
+        for index, agent in enumerate(self.agents):
+            if agent.name == default.name:
+                return index
+        return 0
 
     @property
     def agent(self) -> BaseAgent:
