@@ -13,7 +13,7 @@ from rqark_app.config.default import AGENTS, CLOUD, PROVIDERS
 from rqark_app.config.dir_cache import DirCache
 from rqark_app.libs.io import IoHelper
 from rqark_app.prompts.memory import MemoryPrompt
-from rqark_app.tools import MemorySave, MemorySearch
+from rqark_app.tools import MemorySave, MemorySearch, Task
 from rqark_app.types.agent import BaseAgent
 from rqark_app.types.cloud import CloudConfig
 
@@ -42,6 +42,7 @@ TOOLS: dict[str, Callable[..., BaseTool]] = {
     'MemorySearch': MemorySearch,
     'PlanUpdate': PlanUpdate,
     'ReadFile': ReadFile,
+    'Task': Task,
     'WebFetch': WebFetch,
     'WebSearch': WebSearch,
     'WriteFile': WriteFile,

@@ -388,3 +388,43 @@ async def test_delete_agent_default_raises_on_another_error(build_client):
     with pytest.raises(DataCloudError) as info:
         await client.delete_agent_default('TUI')
     assert info.value.status_code == 500
+
+
+async def test_task_calls_hit_the_task_endpoints(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if request.method == 'DELETE':
+            return httpx.Response(204)
+        if request.url.path == '/api/tasks':
+            if request.method == 'GET':
+                return httpx.Response(200, json=[{'id': 't1'}])
+            return httpx.Response(201, json={'id': 't1'})
+        return httpx.Response(200, json={'id': 't1'})
+
+    client = build_client(handler)
+
+    assert await client.list_tasks() == [{'id': 't1'}]
+    assert await client.create_task({'name': 'Morning brief'}) == {'id': 't1'}
+    assert (await client.update_task('t1', {'enabled': False}))['id'] == 't1'
+    assert (await client.run_task('t1'))['id'] == 't1'
+    await client.delete_task('t1')
+
+    assert [(call.method, call.url.path) for call in calls] == [('GET', '/api/tasks'), ('POST', '/api/tasks'), ('PUT', '/api/tasks/t1'), ('POST', '/api/tasks/t1/run'), ('DELETE', '/api/tasks/t1')]
+    assert json.loads(calls[1].content) == {'name': 'Morning brief'}
+    assert json.loads(calls[2].content) == {'enabled': False}
+
+
+async def test_list_task_runs_sends_the_page(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={'items': [], 'next_cursor': None})
+
+    client = build_client(handler)
+    await client.list_task_runs('t1', limit=20, offset=40)
+
+    assert calls[0].url.path == '/api/tasks/t1/runs'
+    assert dict(calls[0].url.params) == {'limit': '20', 'offset': '40'}

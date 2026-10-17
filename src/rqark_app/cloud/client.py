@@ -134,6 +134,32 @@ class RQArkDataCloudClient:
     async def prompt_memory(self, agent_id: str) -> list[dict]:
         return self._json(await self.request('POST', 'memory/prompt', json={'agent_id': agent_id})) or []
 
+    async def list_tasks(self) -> list[dict]:
+        return self._json(await self.request('GET', 'tasks')) or []
+
+    async def get_task(self, uuid: str) -> dict:
+        return self._json(await self.request('GET', f'tasks/{uuid}')) or {}
+
+    async def create_task(self, payload: dict) -> dict:
+        return self._json(await self.request('POST', 'tasks', json=payload)) or {}
+
+    async def update_task(self, uuid: str, payload: dict) -> dict:
+        return self._json(await self.request('PUT', f'tasks/{uuid}', json=payload)) or {}
+
+    async def delete_task(self, uuid: str) -> None:
+        await self.request('DELETE', f'tasks/{uuid}')
+
+    async def run_task(self, uuid: str) -> dict:
+        return self._json(await self.request('POST', f'tasks/{uuid}/run')) or {}
+
+    async def list_task_runs(self, uuid: str, limit: int | None = None, offset: int | None = None) -> dict:
+        params: dict[str, str] = {}
+        if limit is not None:
+            params['limit'] = str(limit)
+        if offset is not None:
+            params['offset'] = str(offset)
+        return self._json(await self.request('GET', f'tasks/{uuid}/runs', params=params or None)) or {}
+
     async def list_agent_defaults(self) -> list[dict]:
         return await self._list('agent-defaults', None, None)
 
