@@ -1,4 +1,4 @@
-from rqark_core.types.prompt import BasePrompt
+from rqark_core.types.prompt import BasePrompt, PromptContext
 
 _prompt = """
 You are a context compressor for a long-running chat session. The conversation
@@ -17,5 +17,5 @@ Rules:
 class CompactContext(BasePrompt):
     priority: int = -1
 
-    def get_messages(self) -> str | None:
+    async def get_messages(self, ctx: PromptContext | None = None) -> str | None:
         return _prompt

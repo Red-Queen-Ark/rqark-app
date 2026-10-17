@@ -1,3 +1,5 @@
+from typing import Any
+
 from openai import APIError
 from rqark_core.core import AgentCore
 from rqark_core.types.chat import Message, UserMessage
@@ -34,9 +36,9 @@ class AgentApp(AgentAppEventEmitter):
         if session is not None:
             await self.session_mgr.save(session.uuid)
 
-    async def chat(self, content: str, agent: BaseAgent, session_id: str | None = None, path: tuple[str, ...] = (), images: list[str] | None = None) -> Session:
+    async def chat(self, content: str, agent: BaseAgent, session_id: str | None = None, path: tuple[str, ...] = (), images: list[str] | None = None, extras: dict[str, Any] | None = None) -> Session:
         session = await self.session_mgr.get_or_create(session_id) if session_id else await self.session_mgr.create()
-        core = AgentCore(f'{agent.name}:{session.uuid}', path=path)
+        core = AgentCore(f'{agent.name}:{session.uuid}', path=path, extras=extras)
         user_msg = UserMessage(content, images=list(images) if images else [])
         await self._emit('message', AgentPayload(core.agent_id, core.path, user_msg))
         self._connect_event(core)
