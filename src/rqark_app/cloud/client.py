@@ -99,6 +99,41 @@ class RQArkDataCloudClient:
     async def list_session_messages(self, uuid: str, limit: int | None = None, offset: int | None = None) -> list[dict]:
         return await self._list(f'sessions/{uuid}/messages', limit, offset)
 
+    async def list_memory(self, agent_id: str | None = None, cursor: str | None = None, limit: int | None = None) -> dict:
+        params: dict[str, str] = {}
+        if agent_id is not None:
+            params['agent_id'] = agent_id
+        if cursor:
+            params['cursor'] = cursor
+        if limit is not None:
+            params['limit'] = str(limit)
+        return self._json(await self.request('GET', 'memory', params=params or None)) or {}
+
+    async def get_memory(self, uuid: str) -> dict:
+        return self._json(await self.request('GET', f'memory/{uuid}')) or {}
+
+    async def create_memory(self, payload: dict) -> dict:
+        return self._json(await self.request('POST', 'memory', json=payload)) or {}
+
+    async def set_memory_pinned(self, uuid: str, pinned: bool) -> dict:
+        return self._json(await self.request('PATCH', f'memory/{uuid}', json={'pinned': pinned})) or {}
+
+    async def delete_memory(self, uuid: str) -> None:
+        await self.request('DELETE', f'memory/{uuid}')
+
+    async def search_memory(self, agent_id: str, query: str | None = None, keywords: list[str] | None = None, at: str | None = None) -> list[dict]:
+        payload: dict = {'agent_id': agent_id}
+        if query:
+            payload['query'] = query
+        if keywords:
+            payload['keywords'] = keywords
+        if at:
+            payload['at'] = at
+        return self._json(await self.request('POST', 'memory/search', json=payload)) or []
+
+    async def prompt_memory(self, agent_id: str) -> list[dict]:
+        return self._json(await self.request('POST', 'memory/prompt', json={'agent_id': agent_id})) or []
+
     async def list_agent_defaults(self) -> list[dict]:
         return await self._list('agent-defaults', None, None)
 
@@ -153,8 +188,11 @@ class RQArkDataCloudClient:
         code = 'UNKNOWN'
         message = f'data cloud answered {response.status_code}'
         try:
-            error = response.json().get('error') or {}
+            body = response.json()
         except ValueError:
+            body = {}
+        error = body.get('error') if isinstance(body, dict) else None
+        if not isinstance(error, dict):
             error = {}
         code = str(error.get('code') or code)
         message = str(error.get('message') or message)
