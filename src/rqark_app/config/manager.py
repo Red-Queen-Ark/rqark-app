@@ -12,6 +12,8 @@ from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
 from rqark_app.config.default import AGENTS, CLOUD, PROVIDERS
 from rqark_app.config.dir_cache import DirCache
 from rqark_app.libs.io import IoHelper
+from rqark_app.prompts.memory import MemoryPrompt
+from rqark_app.tools import MemorySave, MemorySearch
 from rqark_app.types.agent import BaseAgent
 from rqark_app.types.cloud import CloudConfig
 
@@ -21,6 +23,7 @@ PROMPTS: dict[str, Callable[..., BasePrompt]] = {
     'CharacterPrompt': CharacterPrompt,
     'DateTimePrompt': DateTimePrompt,
     'GitProjectPrompt': GitProjectPrompt,
+    'MemoryPrompt': MemoryPrompt,
     'PlatformPrompt': PlatformPrompt,
     'RolePrompt': RolePrompt,
     'SubAgentPrompt': SubAgentPrompt,
@@ -35,6 +38,8 @@ TOOLS: dict[str, Callable[..., BaseTool]] = {
     'GitLab': GitLab,
     'Grep': Grep,
     'ListDir': ListDir,
+    'MemorySave': MemorySave,
+    'MemorySearch': MemorySearch,
     'PlanUpdate': PlanUpdate,
     'ReadFile': ReadFile,
     'WebFetch': WebFetch,

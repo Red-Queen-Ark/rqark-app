@@ -24,7 +24,7 @@ class FakeCore:
     instances: list['FakeCore'] = []
     errors = 0
 
-    def __init__(self, agent_id: str = '', path: tuple[str, ...] = ()):
+    def __init__(self, agent_id: str = '', path: tuple[str, ...] = (), extras: dict | None = None):
         self.agent_id = agent_id
         self.path = path
         self.chat_calls: list[tuple] = []

@@ -94,6 +94,89 @@ async def test_list_agents_authorizes_with_the_api_key(build_client):
     assert calls[0].headers['Authorization'] == 'Bearer secret'
 
 
+async def test_list_memory_sends_the_agent_and_cursor(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={'items': [{'id': 'm1'}], 'next_cursor': 'abc'})
+
+    client = build_client(handler)
+    page = await client.list_memory(agent_id='agent-1', cursor='xyz', limit=100)
+
+    assert page == {'items': [{'id': 'm1'}], 'next_cursor': 'abc'}
+    assert calls[0].url.path == '/api/memory'
+    assert dict(calls[0].url.params) == {'agent_id': 'agent-1', 'cursor': 'xyz', 'limit': '100'}
+
+
+async def test_list_memory_sends_no_params_without_arguments(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={'items': [], 'next_cursor': ''})
+
+    client = build_client(handler)
+    await client.list_memory()
+
+    assert not calls[0].url.params
+
+
+async def test_set_memory_pinned_patches_the_flag(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={'id': 'm1', 'pinned': True})
+
+    client = build_client(handler)
+    assert await client.set_memory_pinned('m1', True) == {'id': 'm1', 'pinned': True}
+    assert (calls[0].method, calls[0].url.path) == ('PATCH', '/api/memory/m1')
+    assert json.loads(calls[0].content) == {'pinned': True}
+
+
+async def test_search_memory_posts_only_the_fields_it_was_given(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=[{'id': 'm1'}])
+
+    client = build_client(handler)
+    rows = await client.search_memory('agent-1', query='reply', keywords=['reply'], at='2026-10-01T00:00:00Z')
+
+    assert rows == [{'id': 'm1'}]
+    assert calls[0].url.path == '/api/memory/search'
+    assert json.loads(calls[0].content) == {'agent_id': 'agent-1', 'query': 'reply', 'keywords': ['reply'], 'at': '2026-10-01T00:00:00Z'}
+
+
+async def test_search_memory_sends_only_the_agent_without_terms(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=[])
+
+    client = build_client(handler)
+    await client.search_memory('agent-1')
+
+    assert json.loads(calls[0].content) == {'agent_id': 'agent-1'}
+
+
+async def test_create_memory_posts_the_payload(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(201, json={'id': 'm1'})
+
+    client = build_client(handler)
+    payload = {'agent_id': 'agent-1', 'content': 'a fact', 'source': 'TUI'}
+    assert await client.create_memory(payload) == {'id': 'm1'}
+    assert (calls[0].method, calls[0].url.path) == ('POST', '/api/memory')
+    assert json.loads(calls[0].content) == payload
+
+
 async def test_request_wraps_transport_errors(build_client):
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError('connection refused')

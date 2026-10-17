@@ -28,9 +28,10 @@ class FakeCore:
     errors = 0
     terminal_error: Exception | None = None
 
-    def __init__(self, agent_id: str = '', path: tuple[str, ...] = ()):
+    def __init__(self, agent_id: str = '', path: tuple[str, ...] = (), extras: dict | None = None):
         self.agent_id = agent_id
         self.path = path
+        self.extras = extras
         self.chat_calls: list[tuple] = []
         FakeCore.instances.append(self)
 
@@ -80,6 +81,19 @@ async def test_chat_default_path_is_empty(fake_core):
     app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
     await app.chat('hi', TestAgent())
     assert fake_core.instances[0].path == ()
+
+
+async def test_chat_passes_extras_to_the_core(fake_core):
+    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    extras = {'data_cloud': 'client', 'agent_id': 'agent-1', 'source': 'TUI'}
+    await app.chat('hi', TestAgent(), extras=extras)
+    assert fake_core.instances[0].extras is extras
+
+
+async def test_chat_without_extras_leaves_the_core_extras_empty(fake_core):
+    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    await app.chat('hi', TestAgent())
+    assert fake_core.instances[0].extras is None
 
 
 async def test_chat_emits_message_event_with_path(fake_core):
