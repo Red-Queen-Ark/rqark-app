@@ -1,4 +1,4 @@
-from rqark_core.types.prompt import BasePrompt
+from rqark_core.types.prompt import BasePrompt, PromptContext
 
 _prompt = """
 You are a session-title generator for a chat app. Your only job is to label a chat
@@ -15,5 +15,5 @@ Rules:
 class GentTilte(BasePrompt):
     priority: int = -1
 
-    def get_messages(self) -> str | None:
+    async def get_messages(self, ctx: PromptContext | None = None) -> str | None:
         return _prompt
