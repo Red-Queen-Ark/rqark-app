@@ -182,6 +182,22 @@ class RQArkDataCloudClient:
             params['offset'] = str(offset)
         return self._json(await self.request('GET', f'tasks/{uuid}/runs', params=params or None)) or {}
 
+    async def list_todos(self, done: bool | None = None) -> list[dict]:
+        params = {'done': 'true' if done else 'false'} if done is not None else None
+        return self._json(await self.request('GET', 'todos', params=params)) or []
+
+    async def get_todo(self, uuid: str) -> dict:
+        return self._json(await self.request('GET', f'todos/{uuid}')) or {}
+
+    async def create_todo(self, payload: dict) -> dict:
+        return self._json(await self.request('POST', 'todos', json=payload)) or {}
+
+    async def update_todo(self, uuid: str, payload: dict) -> dict:
+        return self._json(await self.request('PUT', f'todos/{uuid}', json=payload)) or {}
+
+    async def delete_todo(self, uuid: str) -> None:
+        await self.request('DELETE', f'todos/{uuid}')
+
     async def list_agent_defaults(self) -> list[dict]:
         return await self._list('agent-defaults', None, None)
 
