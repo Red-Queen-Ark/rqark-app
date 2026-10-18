@@ -428,3 +428,42 @@ async def test_list_task_runs_sends_the_page(build_client):
 
     assert calls[0].url.path == '/api/tasks/t1/runs'
     assert dict(calls[0].url.params) == {'limit': '20', 'offset': '40'}
+
+
+async def test_list_sops_follows_the_cursor(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if request.url.params.get('cursor'):
+            return httpx.Response(200, json={'items': [{'slug': 'bravo'}], 'next_cursor': ''})
+        return httpx.Response(200, json={'items': [{'slug': 'alpha'}], 'next_cursor': 'YnJhdm8'})
+
+    client = build_client(handler)
+    sops = await client.list_sops()
+
+    assert [sop['slug'] for sop in sops] == ['alpha', 'bravo']
+    assert calls[0].url.params.get('cursor') is None
+    assert calls[1].url.params.get('cursor') == 'YnJhdm8'
+    assert calls[0].url.path == '/api/sops'
+
+
+async def test_sop_calls_hit_the_sop_endpoints(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if request.method == 'DELETE':
+            return httpx.Response(204)
+        if request.method == 'GET':
+            return httpx.Response(200, json={'items': [], 'next_cursor': ''})
+        return httpx.Response(200, json={'slug': 'trip-itinerary', 'content': '# Trip'})
+
+    client = build_client(handler)
+    await client.get_sop('trip-itinerary')
+    await client.create_sop({'slug': 'trip-itinerary', 'content': '# Trip'})
+    await client.update_sop('trip-itinerary', {'content': '# Trip'})
+    await client.delete_sop('trip-itinerary')
+
+    assert [(call.method, call.url.path) for call in calls] == [('GET', '/api/sops/trip-itinerary'), ('POST', '/api/sops'), ('PATCH', '/api/sops/trip-itinerary'), ('DELETE', '/api/sops/trip-itinerary')]
+    assert json.loads(calls[2].content) == {'content': '# Trip'}

@@ -134,6 +134,28 @@ class RQArkDataCloudClient:
     async def prompt_memory(self, agent_id: str) -> list[dict]:
         return self._json(await self.request('POST', 'memory/prompt', json={'agent_id': agent_id})) or []
 
+    async def list_sops(self) -> list[dict]:
+        sops: list[dict] = []
+        cursor = ''
+        while True:
+            page = self._json(await self.request('GET', 'sops', params={'cursor': cursor} if cursor else None)) or {}
+            sops.extend(page.get('items') or [])
+            cursor = str(page.get('next_cursor') or '')
+            if not cursor:
+                return sops
+
+    async def get_sop(self, slug: str) -> dict:
+        return self._json(await self.request('GET', f'sops/{slug}')) or {}
+
+    async def create_sop(self, payload: dict) -> dict:
+        return self._json(await self.request('POST', 'sops', json=payload)) or {}
+
+    async def update_sop(self, slug: str, payload: dict) -> dict:
+        return self._json(await self.request('PATCH', f'sops/{slug}', json=payload)) or {}
+
+    async def delete_sop(self, slug: str) -> None:
+        await self.request('DELETE', f'sops/{slug}')
+
     async def list_tasks(self) -> list[dict]:
         return self._json(await self.request('GET', 'tasks')) or []
 

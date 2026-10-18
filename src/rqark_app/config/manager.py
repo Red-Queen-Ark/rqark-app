@@ -13,6 +13,7 @@ from rqark_app.config.default import AGENTS, CLOUD, PROVIDERS
 from rqark_app.config.dir_cache import DirCache
 from rqark_app.libs.io import IoHelper
 from rqark_app.prompts.memory import MemoryPrompt
+from rqark_app.sop.manager import SopManager
 from rqark_app.tools import MemorySave, MemorySearch, Task
 from rqark_app.types.agent import BaseAgent
 from rqark_app.types.cloud import CloudConfig
@@ -97,6 +98,7 @@ class ConfigManager:
         self.cwd_hash = self.dir_cache.compute_hash(Path.cwd())
 
         self.cloud_client: RQArkDataCloudClient | None = None
+        self.sop_manager = SopManager(self.config_path)
 
     async def load(self):
         self.config_path.mkdir(parents=True, exist_ok=True)
@@ -129,6 +131,7 @@ class ConfigManager:
         config = CloudConfig(bool(info.get('enabled')), str(info.get('url') or ''), str(info.get('api_key') or ''))
         if config.configured:
             self.cloud_client = RQArkDataCloudClient(config, transport=self.cloud_transport)
+        self.sop_manager = SopManager(self.config_path, self.cloud_client)
 
     async def _load_agents(self):
         if self.cloud_client is not None:
