@@ -3,7 +3,7 @@ from typing import Literal
 
 from rqark_core.types.provider import Provider
 
-type AgentAppEventType = Literal['think', 'content', 'tool_calls', 'tool_result', 'error', 'message', 'plan', 'provider_switched']
+type AgentAppEventType = Literal['think', 'content', 'tool_calls', 'tool_result', 'usage', 'error', 'message', 'plan', 'provider_switched']
 
 
 @dataclass
