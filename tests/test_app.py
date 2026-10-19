@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import pytest
 from openai import APIError
-from rqark_core.types.chat import AssistantMessage, SystemMessage, ToolCall, ToolMessage, Usage, UserMessage
+from rqark_core.types.chat import AssistantMessage, Chunk, SystemMessage, ToolCall, ToolMessage, Usage, UserMessage
 from rqark_core.types.event import AgentPayload
 from rqark_core.types.provider import Provider
 from rqark_core.types.tool import PlanItem
@@ -27,6 +27,8 @@ class FakeCore:
     instances: list['FakeCore'] = []
     errors = 0
     terminal_error: Exception | None = None
+    reply_usage: Usage | None = None
+    reply: list | None = None
 
     def __init__(self, agent_id: str = '', path: tuple[str, ...] = (), extras: dict | None = None):
         self.agent_id = agent_id
@@ -53,7 +55,7 @@ class FakeCore:
             FakeCore.errors -= 1
             request = httpx.Request('POST', 'http://test')
             return messages, APIError('boom', request=request, body=None)
-        return [*messages, AssistantMessage('ok')], None
+        return [*messages, *(FakeCore.reply or [AssistantMessage('ok', usage=FakeCore.reply_usage)])], None
 
 
 @pytest.fixture
@@ -61,6 +63,8 @@ def fake_core(monkeypatch):
     FakeCore.instances = []
     FakeCore.errors = 0
     FakeCore.terminal_error = None
+    FakeCore.reply_usage = None
+    FakeCore.reply = None
     monkeypatch.setattr('rqark_app.app.AgentCore', FakeCore)
     return FakeCore
 
@@ -152,11 +156,80 @@ async def test_provider_switched_emits_event(fake_core, monkeypatch):
     assert app.provider_mgr.provider.name == 'p2'
 
 
+async def test_usage_chunk_is_forwarded_as_a_usage_event(fake_core):
+    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    events = []
+
+    async def on_usage(ev):
+        events.append(ev)
+
+    app.on_usage()(on_usage)
+    await app.handle_chunk_event(AgentPayload('wednesday:abc', ('parent:1',), Chunk('usage', Usage(10, 5, 15))))
+
+    assert len(events) == 1
+    assert events[0].agent_id == 'wednesday:abc'
+    assert events[0].path == ('parent:1',)
+    assert events[0].payload.prompt_tokens == 10
+    assert events[0].payload.completion_tokens == 5
+    assert events[0].payload.total_tokens == 15
+
+
+async def test_usage_chunk_without_a_usage_payload_is_ignored(fake_core):
+    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    events = []
+
+    async def on_usage(ev):
+        events.append(ev)
+
+    app.on_usage()(on_usage)
+    await app.handle_chunk_event(AgentPayload('wednesday:abc', (), Chunk('usage', 'not-a-usage')))
+
+    assert events == []
+
+
+async def test_chat_persists_the_assistant_usage_into_the_session(fake_core):
+    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    fake_core.reply_usage = Usage(100, 20, 120, cached_tokens=64, reasoning_tokens=8)
+
+    session = await app.chat('hi', TestAgent(), session_id='abc')
+
+    usage = session.history[-1].usage
+    assert usage == Usage(100, 20, 120, cached_tokens=64, reasoning_tokens=8)
+    assert usage.prompt_tokens > 0
+    assert usage.cache_hit_rate == 0.64
+
+
+async def test_chat_writes_usage_into_the_jsonl_file(fake_core, tmp_path):
+    storage = JSONLStorage(tmp_path)
+    app = AgentApp([Provider('m', 'k', 'http://x', 0, name='p1')], storage=storage)
+    fake_core.reply_usage = Usage(100, 20, 120, cached_tokens=64, reasoning_tokens=8)
+
+    await app.chat('hi', TestAgent(), session_id='abc')
+
+    raw = next(iter(tmp_path.glob('*.jsonl'))).read_text(encoding='utf-8')
+    assert '"usage"' in raw
+    assert '"cached_tokens": 64' in raw
+
+
+async def test_every_assistant_message_in_a_tool_turn_keeps_its_own_usage(fake_core):
+    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    fake_core.reply = [
+        AssistantMessage('calling', tool_calls=[ToolCall('c1', 'function', 'fn', '{}')], usage=Usage(10, 1, 11)),
+        ToolMessage('c1', 'result'),
+        AssistantMessage('done', usage=Usage(20, 2, 22)),
+    ]
+
+    session = await app.chat('hi', TestAgent(), session_id='abc')
+
+    usages = [m.usage for m in session.history if isinstance(m, AssistantMessage)]
+    assert usages == [Usage(10, 1, 11), Usage(20, 2, 22)]
+
+
 async def test_jsonl_storage_roundtrip(tmp_path):
     storage = JSONLStorage(tmp_path)
     session = Session(uuid='s1', title='t1')
     user_msg = UserMessage('hi')
-    assistant_msg = AssistantMessage('yo', tool_calls=[ToolCall('c1', 'function', 'fn', '{}')], reasoning_content='think step', usage=Usage(1, 2, 3))
+    assistant_msg = AssistantMessage('yo', tool_calls=[ToolCall('c1', 'function', 'fn', '{}')], reasoning_content='think step', usage=Usage(1, 2, 3, cached_tokens=1, reasoning_tokens=1))
     session.history = [user_msg, assistant_msg]
     session.plan_items = [PlanItem('p1', 'do stuff', 'pending')]
     await storage.create(session)
@@ -177,7 +250,7 @@ async def test_jsonl_storage_roundtrip(tmp_path):
     assert s.history[1].reasoning_content == 'think step'
     assert s.history[1].created_at == assistant_msg.created_at
     assert s.history[1].created_at.utcoffset() == timedelta(0)
-    assert s.history[1].usage is None
+    assert s.history[1].usage == Usage(1, 2, 3, cached_tokens=1, reasoning_tokens=1)
     assert s.plan_items[0].content == 'do stuff'
     assert await storage.delete('s1') is True
     assert await storage.delete('s1') is False

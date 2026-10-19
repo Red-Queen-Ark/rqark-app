@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
 from rqark_core.libs.event import BaseEventEmitter, EventFunction
-from rqark_core.types.chat import Chunk, Message, ToolMessage
+from rqark_core.types.chat import Chunk, Message, ToolMessage, Usage
 from rqark_core.types.event import AgentPayload
 from rqark_core.types.tool import PlanItem
 
@@ -24,6 +24,9 @@ class AgentAppEventEmitter(BaseEventEmitter[AgentAppEventType]):
     def on_error(self) -> Callable[[EventFunction[AgentPayload[Chunk]]], EventFunction[AgentPayload[Chunk]]]:
         return self._on('error')
 
+    def on_usage(self) -> Callable[[EventFunction[AgentPayload[Usage]]], EventFunction[AgentPayload[Usage]]]:
+        return self._on('usage')
+
     def on_message(self) -> Callable[[EventFunction[AgentPayload[Message]]], EventFunction[AgentPayload[Message]]]:
         return self._on('message')
 
@@ -43,6 +46,8 @@ class AgentAppEventEmitter(BaseEventEmitter[AgentAppEventType]):
             await self._emit('tool_calls', ev)
         elif chunk.type == 'tool_result' and isinstance(chunk.content, ToolMessage):
             await self._emit('tool_result', AgentPayload(ev.agent_id, ev.path, chunk.content))
+        elif chunk.type == 'usage' and isinstance(chunk.content, Usage):
+            await self._emit('usage', AgentPayload(ev.agent_id, ev.path, chunk.content))
         elif chunk.type == 'error':
             await self._emit('error', ev)
 
