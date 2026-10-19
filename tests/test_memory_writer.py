@@ -18,6 +18,8 @@ class FakeClient:
         self.state = {'content': 'old board', 'version': 3}
 
     async def create_memory(self, payload: dict) -> dict:
+        if not payload.get('occurred_at'):
+            raise DataCloudError(400, 'INVALID_CONTENT', 'occurred_at is required.')
         self.created.append(payload)
         return {'id': 'memory-1'}
 
@@ -90,6 +92,7 @@ async def test_the_turn_is_written_as_one_event_and_the_new_state(model):
     assert client.created[0]['content'] == 'Boss 叫 agent 修好 memory writer；agent 改咗 writer.py'
     assert client.created[0]['source'] == 'TUI'
     assert client.created[0]['keywords'] == ['memory', 'writer']
+    assert client.created[0]['occurred_at']
 
     assert len(client.states) == 1
     assert client.states[0]['content'] == '## Now\n- memory writer 寫好'

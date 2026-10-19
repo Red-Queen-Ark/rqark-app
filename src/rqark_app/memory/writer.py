@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 from rqark_core.core import AgentCore
@@ -126,7 +127,7 @@ class TurnMemoryWriter:
 
     async def _write_rows(self, agent_id: str, source: str, session_id: str, rows: Any, *, kind: str) -> None:
         for content, keywords in row_entries(rows, kind=kind):
-            payload: dict[str, Any] = {'agent_id': agent_id, 'content': content, 'kind': kind, 'source': source}
+            payload: dict[str, Any] = {'agent_id': agent_id, 'content': content, 'kind': kind, 'source': source, 'occurred_at': datetime.now(UTC).isoformat()}
             if keywords:
                 payload['keywords'] = keywords
             try:
