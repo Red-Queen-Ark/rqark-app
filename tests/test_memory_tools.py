@@ -102,7 +102,7 @@ async def test_search_uses_the_pair_from_extras():
     client.rows = [{'id': 'm1', 'content': 'Boss prefers short replies', 'keywords': ['reply'], 'occurred_at': '2026-10-01T00:00:00Z', 'pinned': False, 'hits': 3}]
     result = await MemorySearch().run(ctx=context(client), query='reply', keywords=['reply', 'style'], at='2026-10-01T00:00:00Z')
     assert client.searched == [('agent-1', 'reply', ['reply', 'style'], '2026-10-01T00:00:00Z')]
-    assert json.loads(result) == [{'id': 'm1', 'content': 'Boss prefers short replies', 'keywords': ['reply'], 'occurred_at': '2026-10-01T00:00:00Z', 'pinned': False}]
+    assert json.loads(result) == [{'id': 'm1', 'content': 'Boss prefers short replies', 'keywords': ['reply'], 'kind': None, 'occurred_at': '2026-10-01T00:00:00Z', 'pinned': False}]
 
 
 async def test_search_without_arguments_sends_only_the_agent():

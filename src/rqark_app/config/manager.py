@@ -13,6 +13,7 @@ from rqark_app.config.default import AGENTS, CLOUD, PROVIDERS
 from rqark_app.config.dir_cache import DirCache
 from rqark_app.libs.io import IoHelper
 from rqark_app.prompts.memory import MemoryPrompt
+from rqark_app.prompts.state import StatePrompt
 from rqark_app.sop.manager import SopManager
 from rqark_app.tools import MemorySave, MemorySearch, Task, Todo
 from rqark_app.types.agent import BaseAgent
@@ -27,6 +28,7 @@ PROMPTS: dict[str, Callable[..., BasePrompt]] = {
     'MemoryPrompt': MemoryPrompt,
     'PlatformPrompt': PlatformPrompt,
     'RolePrompt': RolePrompt,
+    'StatePrompt': StatePrompt,
     'SubAgentPrompt': SubAgentPrompt,
     'WorkspacePrompt': WorkspacePrompt,
 }

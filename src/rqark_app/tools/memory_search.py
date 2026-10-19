@@ -25,7 +25,7 @@ class MemorySearch(BaseTool):
             'type': 'function',
             'function': {
                 'name': self.name,
-                'description': 'Search your memory log for this user. Returns at most 20 rows, ranked by keyword matches, then relevance decayed with age, then recency. Pinned rows are not ranked first here.',
+                'description': 'Search your memory log for this user. Returns at most 20 rows of both kinds ("fact" from memory_save, "event" from the automatic per-turn log), ranked by keyword matches, then relevance decayed with age, then recency. Pinned rows are not ranked first here.',
                 'parameters': {
                     'type': 'object',
                     'properties': {
@@ -41,4 +41,4 @@ class MemorySearch(BaseTool):
         client, agent_id, _ = context_parts(ctx)
         keywords = kwargs.get('keywords')
         rows = await client.search_memory(agent_id, query=kwargs.get('query') or None, keywords=[str(keyword) for keyword in keywords] if keywords else None, at=iso(kwargs.get('at')))
-        return json.dumps([{'id': row.get('id'), 'content': row.get('content'), 'keywords': row.get('keywords'), 'occurred_at': row.get('occurred_at'), 'pinned': row.get('pinned')} for row in rows], ensure_ascii=False)
+        return json.dumps([{'id': row.get('id'), 'content': row.get('content'), 'keywords': row.get('keywords'), 'kind': row.get('kind'), 'occurred_at': row.get('occurred_at'), 'pinned': row.get('pinned')} for row in rows], ensure_ascii=False)

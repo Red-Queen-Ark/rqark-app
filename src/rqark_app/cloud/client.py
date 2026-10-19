@@ -99,10 +99,12 @@ class RQArkDataCloudClient:
     async def list_session_messages(self, uuid: str, limit: int | None = None, offset: int | None = None) -> list[dict]:
         return await self._list(f'sessions/{uuid}/messages', limit, offset)
 
-    async def list_memory(self, agent_id: str | None = None, cursor: str | None = None, limit: int | None = None) -> dict:
+    async def list_memory(self, agent_id: str | None = None, cursor: str | None = None, limit: int | None = None, kind: str | None = None) -> dict:
         params: dict[str, str] = {}
         if agent_id is not None:
             params['agent_id'] = agent_id
+        if kind is not None:
+            params['kind'] = kind
         if cursor:
             params['cursor'] = cursor
         if limit is not None:
@@ -131,8 +133,25 @@ class RQArkDataCloudClient:
             payload['at'] = at
         return self._json(await self.request('POST', 'memory/search', json=payload)) or []
 
-    async def prompt_memory(self, agent_id: str) -> list[dict]:
-        return self._json(await self.request('POST', 'memory/prompt', json={'agent_id': agent_id})) or []
+    async def prompt_memory(self, agent_id: str) -> dict:
+        return self._json(await self.request('POST', 'memory/prompt', json={'agent_id': agent_id})) or {}
+
+    async def get_state(self, agent_id: str) -> dict | None:
+        try:
+            return self._json(await self.request('GET', 'memory/state', params={'agent_id': agent_id})) or {}
+        except DataCloudError as error:
+            if error.status_code == 404:
+                return None
+            raise
+
+    async def set_state(self, agent_id: str, content: str, source: str, version: int | None = None) -> dict:
+        payload: dict = {'agent_id': agent_id, 'content': content, 'source': source}
+        if version is not None:
+            payload['version'] = version
+        return self._json(await self.request('PUT', 'memory/state', json=payload)) or {}
+
+    async def delete_state(self, agent_id: str) -> None:
+        await self.request('DELETE', 'memory/state', params={'agent_id': agent_id})
 
     async def list_sops(self) -> list[dict]:
         sops: list[dict] = []

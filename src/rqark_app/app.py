@@ -1,3 +1,6 @@
+import asyncio
+import logging
+import os
 from typing import Any
 
 from openai import APIError
@@ -9,12 +12,31 @@ from rqark_core.types.tool import PlanItem
 
 from rqark_app._app.event import AgentAppEventEmitter
 from rqark_app._app.helper import ChatHelper
+from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
 from rqark_app.compact import Compactor, is_context_overflow
+from rqark_app.memory import TurnMemoryWriter, turn_from_session
+from rqark_app.prompts.memory import PROMPT_KEY
 from rqark_app.provider.manager import ProviderManager
 from rqark_app.session.manager import SessionManager
 from rqark_app.session.storage import SessionStorage
+from rqark_app.tools.context import AGENT_KEY, CLIENT_KEY
 from rqark_app.types.agent import BaseAgent
 from rqark_app.types.session import Session
+
+logger = logging.getLogger(__name__)
+
+TURN_MEMORY_TIMEOUT = 15.0
+TURN_MEMORY_DRAIN_TIMEOUT = 5.0
+
+
+def _auto_write_default() -> bool:
+    """Whether turns are recorded automatically, from RQARK_MEMORY_AUTO_WRITE.
+
+    On by default: the whole point of the writer is that nobody has to remember
+    to call memory_save. 0, false, no and off switch it off.
+    """
+    raw = os.environ.get('RQARK_MEMORY_AUTO_WRITE', '').strip().lower()
+    return raw not in {'0', 'false', 'no', 'off'}
 
 
 class AgentApp(AgentAppEventEmitter):
@@ -24,6 +46,8 @@ class AgentApp(AgentAppEventEmitter):
         self.session_mgr = SessionManager(storage)
         self.chat_helper = ChatHelper(self.provider_mgr, self.session_mgr, self._emit)
         self.compactor = Compactor(self.provider_mgr)
+        self.auto_write_memory = _auto_write_default()
+        self._memory_writes: set[asyncio.Task] = set()
 
     def _connect_event(self, core: AgentCore):
         core.on_chunk()(self.handle_chunk_event)
@@ -47,6 +71,77 @@ class AgentApp(AgentAppEventEmitter):
         self._connect_event(core)
         history = [*session.get_last_chunk_for_chat(), user_msg]
         return await self._loop(session, core, agent, history)
+
+    async def write_turn_memory(self, *, session_id: str, source: str, session: Session, extras: dict[str, Any] | None = None, allow_state_update: bool = True) -> None:
+        """Record one finished turn in the background: one event, the new state.
+
+        The caller runs this in a task after the turn has been answered, so it
+        must never make the answer wait and must never raise (a cancellation is
+        the one exception: the shutdown path has to be able to stop it).
+
+        extras is the same dict the turn ran with, so the data cloud pair and the
+        state the prompt already read are reused instead of asked for twice. A
+        turn with no cloud client or no agent id is a no-op.
+        """
+        if not self.auto_write_memory:
+            return
+        extras = extras or {}
+        client = extras.get(CLIENT_KEY)
+        agent_id = extras.get(AGENT_KEY)
+        if client is None or not agent_id:
+            return
+
+        task = asyncio.current_task()
+        if task is not None:
+            self._memory_writes.add(task)
+        try:
+            async with asyncio.timeout(TURN_MEMORY_TIMEOUT):
+                current_state = await self._current_state(client, str(agent_id), extras)
+                user_text, assistant_text, tool_calls = turn_from_session(session)
+                writer = TurnMemoryWriter(self.provider_mgr, client)
+                await writer.write(agent_id=str(agent_id), source=source, user_text=user_text, assistant_text=assistant_text, tool_calls=tool_calls, session_id=session_id, current_state=current_state, allow_state_update=allow_state_update)
+        except TimeoutError:
+            logger.warning('memory writer timed out session=%s', session_id)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception('memory writer failed session=%s', session_id)
+        finally:
+            if task is not None:
+                self._memory_writes.discard(task)
+
+    async def _current_state(self, client: RQArkDataCloudClient, agent_id: str, extras: dict[str, Any]) -> dict | None:
+        """The state as it stood when this turn started.
+
+        The prompt already fetched it once this turn; reusing that copy is also
+        what makes the optimistic lock honest, because the version sent back is
+        the one the turn actually saw.
+        """
+        cached = extras.get(PROMPT_KEY)
+        if isinstance(cached, dict):
+            state = cached.get('state')
+            return state if isinstance(state, dict) else None
+        try:
+            return await client.get_state(agent_id)
+        except DataCloudError as error:
+            logger.warning('memory writer could not read the state error=%s', error)
+            return None
+
+    async def drain_memory_writes(self, timeout: float = TURN_MEMORY_DRAIN_TIMEOUT) -> None:
+        """Wait for the writes still running, up to timeout.
+
+        Called on shutdown: a task nobody awaits is dropped when the loop closes,
+        which would lose the memory of the last turn exactly when it matters.
+        """
+        pending = [task for task in self._memory_writes if not task.done()]
+        if not pending:
+            return
+        logger.info('waiting for %d pending memory writes', len(pending))
+        try:
+            async with asyncio.timeout(timeout):
+                await asyncio.gather(*pending, return_exceptions=True)
+        except TimeoutError:
+            logger.warning('gave up waiting for memory writes after %.1fs', timeout)
 
     async def _loop(self, session: Session, core: AgentCore, agent: BaseAgent, history: list[Message]) -> Session:
         while True:

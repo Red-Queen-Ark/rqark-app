@@ -11,7 +11,7 @@ ROWS = [{'id': 'm1', 'content': 'Boss prefers short replies', 'occurred_at': '20
 
 def build_client(rows: list[dict] | None = None, status: int = 200) -> RQArkDataCloudClient:
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(status, json=ROWS if rows is None else rows)
+        return httpx.Response(status, json={'state': None, 'memories': ROWS if rows is None else rows})
 
     client = RQArkDataCloudClient(CloudConfig(True, 'https://cloud.test', 'secret'))
     client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
@@ -75,7 +75,7 @@ async def test_prompt_asks_for_the_pair_the_chat_runs_under():
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
-        return httpx.Response(200, json=ROWS)
+        return httpx.Response(200, json={'state': None, 'memories': ROWS})
 
     client = RQArkDataCloudClient(CloudConfig(True, 'https://cloud.test', 'secret'))
     client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
