@@ -240,6 +240,48 @@ async def test_handle_save_plan_wires_to_session(fake_core):
     assert session.plan_items[0].content == 'do stuff'
 
 
+async def test_chat_seeds_the_core_with_the_session_plan(fake_core):
+    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    await app.chat('hi', TestAgent(), session_id='abc')
+    await app.handle_save_plan(AgentPayload('wednesday:abc', ('parent:1',), [PlanItem('p1', 'do stuff', 'in_progress')]))
+
+    await app.chat('second', TestAgent(), session_id='abc')
+
+    core = fake_core.instances[-1]
+    assert [(p.id, p.content, p.status) for p in core.plan_items] == [('p1', 'do stuff', 'in_progress')]
+
+
+async def test_chat_seeds_an_empty_plan_for_a_new_session(fake_core):
+    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    await app.chat('hi', TestAgent())
+    assert fake_core.instances[-1].plan_items == []
+
+
+async def test_chat_seeded_plan_items_are_copies(fake_core):
+    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    await app.chat('hi', TestAgent(), session_id='abc')
+    session = app.session_mgr.sessions_map['abc']
+    session.plan_items = [PlanItem('p1', 'do stuff', 'pending')]
+
+    await app.chat('second', TestAgent(), session_id='abc')
+    fake_core.instances[-1].plan_items[0].status = 'completed'
+
+    assert session.plan_items[0].status == 'pending'
+
+
+async def test_chat_seeds_the_plan_after_a_storage_reload(fake_core, tmp_path):
+    storage = JSONLStorage(tmp_path)
+    app = AgentApp([Provider('m', 'k', 'http://x', 0, name='p1')], storage=storage)
+    await app.chat('hi', TestAgent(), session_id='abc')
+    await app.handle_save_plan(AgentPayload('wednesday:abc', ('parent:1',), [PlanItem('p1', 'do stuff', 'pending')]))
+
+    restarted = AgentApp([Provider('m', 'k', 'http://x', 0, name='p1')], storage=storage)
+    await restarted.session_mgr.load()
+    await restarted.chat('second', TestAgent(), session_id='abc')
+
+    assert [p.content for p in fake_core.instances[-1].plan_items] == ['do stuff']
+
+
 async def test_set_plan_ignores_unknown_agent(tmp_path):
     storage = JSONLStorage(tmp_path)
     mgr = SessionManager(storage)
