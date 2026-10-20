@@ -61,7 +61,7 @@ class TurnMemoryWriter:
         self.provider_mgr = provider_mgr
         self.client = client
 
-    async def write(self, *, agent_id: str, source: str, user_text: str, assistant_text: str, tool_calls: list[str], session_id: str, current_state: dict | None, allow_state_update: bool = True) -> None:
+    async def write(self, *, agent_id: str, source: str, user_text: str, assistant_text: str, tool_calls: list[str], session_id: str, current_state: dict | None, allow_state_update: bool = True, write_events: bool = True) -> None:
         if should_skip(user_text, assistant_text, tool_calls):
             return
 
@@ -74,7 +74,8 @@ class TurnMemoryWriter:
 
         if allow_state_update:
             await self._write_state(agent_id, source, session_id, current_state, answer.get('state'))
-        await self._write_rows(agent_id, source, session_id, answer.get('events'), kind='event')
+        if write_events:
+            await self._write_rows(agent_id, source, session_id, answer.get('events'), kind='event')
         await self._write_rows(agent_id, source, session_id, answer.get('facts'), kind='fact')
 
     async def _ask(self, user_text: str, assistant_text: str, tool_calls: list[str], session_id: str, current_state: dict | None) -> dict:

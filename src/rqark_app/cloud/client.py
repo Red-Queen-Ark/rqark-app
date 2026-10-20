@@ -220,6 +220,10 @@ class RQArkDataCloudClient:
     async def list_agent_defaults(self) -> list[dict]:
         return await self._list('agent-defaults', None, None)
 
+    async def list_user_config(self) -> list[dict]:
+        """Every setting the account stored, as {key, value} rows."""
+        return self._json(await self.request('GET', 'user-config')) or []
+
     async def get_agent_default(self, source: str) -> dict | None:
         try:
             return self._json(await self.request('GET', f'agent-defaults/{source}')) or {}

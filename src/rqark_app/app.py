@@ -14,7 +14,7 @@ from rqark_app._app.event import AgentAppEventEmitter
 from rqark_app._app.helper import ChatHelper
 from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
 from rqark_app.compact import Compactor, is_context_overflow
-from rqark_app.memory import TurnMemoryWriter, turn_from_session
+from rqark_app.memory import TurnMemoryWriter, load_memory_settings, turn_from_session
 from rqark_app.prompts.memory import PROMPT_KEY
 from rqark_app.provider.manager import ProviderManager
 from rqark_app.session.manager import SessionManager
@@ -82,6 +82,11 @@ class AgentApp(AgentAppEventEmitter):
         extras is the same dict the turn ran with, so the data cloud pair and the
         state the prompt already read are reused instead of asked for twice. A
         turn with no cloud client or no agent id is a no-op.
+
+        What gets written is the account's call: two switches in the user config
+        (memory.event_log and memory.state_update) can turn either half off, and
+        they are read here so a flip in the web UI applies to the next turn.
+        Both off also means no model call and no state read.
         """
         if not self.auto_write_memory:
             return
@@ -91,15 +96,29 @@ class AgentApp(AgentAppEventEmitter):
         if client is None or not agent_id:
             return
 
+        settings = await load_memory_settings(client)
+        if not settings.event_log and not settings.state_update:
+            return
+
         task = asyncio.current_task()
         if task is not None:
             self._memory_writes.add(task)
         try:
             async with asyncio.timeout(TURN_MEMORY_TIMEOUT):
-                current_state = await self._current_state(client, str(agent_id), extras)
+                current_state = await self._current_state(client, str(agent_id), extras) if settings.state_update else None
                 user_text, assistant_text, tool_calls = turn_from_session(session)
                 writer = TurnMemoryWriter(self.provider_mgr, client)
-                await writer.write(agent_id=str(agent_id), source=source, user_text=user_text, assistant_text=assistant_text, tool_calls=tool_calls, session_id=session_id, current_state=current_state, allow_state_update=allow_state_update)
+                await writer.write(
+                    agent_id=str(agent_id),
+                    source=source,
+                    user_text=user_text,
+                    assistant_text=assistant_text,
+                    tool_calls=tool_calls,
+                    session_id=session_id,
+                    current_state=current_state,
+                    allow_state_update=allow_state_update and settings.state_update,
+                    write_events=settings.event_log,
+                )
         except TimeoutError:
             logger.warning('memory writer timed out session=%s', session_id)
         except asyncio.CancelledError:

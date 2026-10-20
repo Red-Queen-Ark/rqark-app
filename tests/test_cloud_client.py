@@ -303,6 +303,21 @@ async def test_update_session_merges_the_source_into_the_payload(build_client):
     assert json.loads(calls[0].content) == {'title': 'spec', 'source': 'AGENT_CLOUD'}
 
 
+async def test_list_user_config_reads_every_setting(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=[{'id': 'c1', 'key': 'memory.event_log', 'value': False}])
+
+    client = build_client(handler)
+    entries = await client.list_user_config()
+
+    assert entries == [{'id': 'c1', 'key': 'memory.event_log', 'value': False}]
+    assert calls[0].url.path == '/api/user-config'
+    assert not calls[0].url.params
+
+
 async def test_list_agent_defaults_reads_the_whole_array(build_client):
     calls: list[httpx.Request] = []
 
