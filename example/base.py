@@ -9,7 +9,7 @@ from rqark_app.agent.agents import Wednesday
 from rqark_app.app import AgentApp
 from rqark_app.types.event import ProviderSwitch
 
-provider = Provider(MODEL_NAME, 'api_key', 'http://127.0.0.1:8080', 0, combine=True, thinking='disabled')
+provider = Provider(MODEL_NAME, 'http://127.0.0.1:8080', 0, 'api_key', combine=True, thinking='disabled')
 
 app = AgentApp([provider])
 
