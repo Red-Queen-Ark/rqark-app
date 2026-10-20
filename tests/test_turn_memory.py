@@ -62,7 +62,7 @@ def model(monkeypatch):
             return [*messages, AssistantMessage(FakeCore.answer)], None
 
     FakeCore.calls = 0
-    monkeypatch.setattr(writer_module, 'AgentCore', FakeCore)
+    monkeypatch.setattr(writer_module, 'create_core', lambda name, cloud_client=None, path=(), extras=None: FakeCore(name, path, extras))
     return FakeCore
 
 

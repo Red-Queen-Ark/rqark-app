@@ -10,6 +10,7 @@ from rqark_core.types.event import AgentPayload
 from rqark_core.types.provider import Provider
 from rqark_core.types.tool import PlanItem
 
+from rqark_app._app.core import create_core
 from rqark_app._app.event import AgentAppEventEmitter
 from rqark_app._app.helper import ChatHelper
 from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
@@ -18,7 +19,7 @@ from rqark_app.memory import TurnMemoryWriter, load_memory_settings, turn_from_s
 from rqark_app.prompts.memory import PROMPT_KEY
 from rqark_app.provider.manager import ProviderManager
 from rqark_app.session.manager import SessionManager
-from rqark_app.session.storage import SessionStorage
+from rqark_app.session.storage import CloudStorage, SessionStorage
 from rqark_app.tools.context import AGENT_KEY, CLIENT_KEY
 from rqark_app.types.agent import BaseAgent
 from rqark_app.types.session import Session
@@ -40,11 +41,12 @@ def _auto_write_default() -> bool:
 
 
 class AgentApp(AgentAppEventEmitter):
-    def __init__(self, providers: list[Provider], storage: SessionStorage | None = None):
+    def __init__(self, providers: list[Provider], storage: SessionStorage | None = None, cloud_client: RQArkDataCloudClient | None = None):
         super().__init__()
+        self.cloud_client = cloud_client or (storage.client if isinstance(storage, CloudStorage) else None)
         self.provider_mgr = ProviderManager(providers)
         self.session_mgr = SessionManager(storage)
-        self.chat_helper = ChatHelper(self.provider_mgr, self.session_mgr, self._emit)
+        self.chat_helper = ChatHelper(self.provider_mgr, self.session_mgr, self._emit, self.cloud_client)
         self.compactor = Compactor(self.provider_mgr)
         self.auto_write_memory = _auto_write_default()
         self._memory_writes: set[asyncio.Task] = set()
@@ -62,7 +64,7 @@ class AgentApp(AgentAppEventEmitter):
 
     async def chat(self, content: str, agent: BaseAgent, session_id: str | None = None, path: tuple[str, ...] = (), images: list[str] | None = None, extras: dict[str, Any] | None = None) -> Session:
         session = await self.session_mgr.get_or_create(session_id) if session_id else await self.session_mgr.create()
-        core = AgentCore(f'{agent.name}:{session.uuid}', path=path, extras=extras)
+        core = create_core(f'{agent.name}:{session.uuid}', self.cloud_client, path=path, extras=extras)
         # A core is created per turn, so the plan stored on the session must be seeded back
         # or plan_update would render "No active plan" for every turn of an ongoing plan.
         core.plan_items = [PlanItem(p.id, p.content, p.status) for p in session.plan_items]
@@ -172,7 +174,7 @@ class AgentApp(AgentAppEventEmitter):
             if error is None:
                 return session
             if is_context_overflow(error):
-                summary = await self.compactor.get_summary(session.get_last_chunk_for_chat())
+                summary = await self.compactor.get_summary(session.get_last_chunk_for_chat(), self.cloud_client)
                 if summary:
                     session.history += [summary]
                     await self.session_mgr.save(session.uuid)

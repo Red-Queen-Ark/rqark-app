@@ -65,7 +65,7 @@ def fake_core(monkeypatch):
     FakeCore.terminal_error = None
     FakeCore.reply_usage = None
     FakeCore.reply = None
-    monkeypatch.setattr('rqark_app.app.AgentCore', FakeCore)
+    monkeypatch.setattr('rqark_app._app.core.AgentCore', FakeCore)
     return FakeCore
 
 
@@ -213,11 +213,7 @@ async def test_chat_writes_usage_into_the_jsonl_file(fake_core, tmp_path):
 
 async def test_every_assistant_message_in_a_tool_turn_keeps_its_own_usage(fake_core):
     app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
-    fake_core.reply = [
-        AssistantMessage('calling', tool_calls=[ToolCall('c1', 'function', 'fn', '{}')], usage=Usage(10, 1, 11)),
-        ToolMessage('c1', 'result'),
-        AssistantMessage('done', usage=Usage(20, 2, 22)),
-    ]
+    fake_core.reply = [AssistantMessage('calling', tool_calls=[ToolCall('c1', 'function', 'fn', '{}')], usage=Usage(10, 1, 11)), ToolMessage('c1', 'result'), AssistantMessage('done', usage=Usage(20, 2, 22))]
 
     session = await app.chat('hi', TestAgent(), session_id='abc')
 

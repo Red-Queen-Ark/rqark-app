@@ -1,8 +1,11 @@
+from collections.abc import Awaitable, Callable
 from types import TracebackType
 
 import httpx
 
 from rqark_app.types.cloud import CloudConfig
+
+UnauthorizedHook = Callable[[], Awaitable[None]]
 
 
 class DataCloudError(Exception):
@@ -14,9 +17,10 @@ class DataCloudError(Exception):
 
 
 class RQArkDataCloudClient:
-    def __init__(self, config: CloudConfig, timeout: float = 30.0, transport: httpx.AsyncBaseTransport | None = None):
+    def __init__(self, config: CloudConfig, timeout: float = 30.0, transport: httpx.AsyncBaseTransport | None = None, on_unauthorized: UnauthorizedHook | None = None):
         self.config = config
         self.timeout = timeout
+        self.on_unauthorized = on_unauthorized
         self._client = httpx.AsyncClient(timeout=self.timeout, transport=transport)
 
     @property
@@ -32,6 +36,9 @@ class RQArkDataCloudClient:
         url = self._url(path)
         try:
             response = await self._client.request(method, url, headers=self._headers(), **kwargs)
+            if response.status_code == 401 and self.on_unauthorized is not None:
+                await self.on_unauthorized()
+                response = await self._client.request(method, url, headers=self._headers(), **kwargs)
         except httpx.HTTPError as error:
             raise DataCloudError(0, 'REQUEST_FAILED', f'cannot reach data cloud at {url}: {error}') from error
         if response.status_code >= 400:

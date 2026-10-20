@@ -51,7 +51,7 @@ class FakeCore:
 def fake_core(monkeypatch):
     FakeCore.instances = []
     FakeCore.errors = 0
-    monkeypatch.setattr('rqark_app.app.AgentCore', FakeCore)
+    monkeypatch.setattr('rqark_app._app.core.AgentCore', FakeCore)
     return FakeCore
 
 
