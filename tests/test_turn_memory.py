@@ -7,6 +7,7 @@ from rqark_core.types.provider import Provider
 
 from rqark_app.app import AgentApp
 from rqark_app.cloud.client import DataCloudError
+from rqark_app.memory import EVENT_LOG_KEY, STATE_UPDATE_KEY
 from rqark_app.memory import writer as writer_module
 from rqark_app.prompts.memory import PROMPT_KEY
 from rqark_app.tools.context import AGENT_KEY, CLIENT_KEY, SOURCE_KEY
@@ -18,13 +19,21 @@ class FakeClient:
         self.created: list[dict] = []
         self.states: list[dict] = []
         self.state_reads = 0
+        self.config_reads = 0
         self.fail = False
+        self.user_config: list[dict] = []
 
     async def create_memory(self, payload: dict) -> dict:
         if self.fail:
             raise DataCloudError(500, 'INTERNAL', 'boom')
         self.created.append(payload)
         return {'id': 'memory-1'}
+
+    async def list_user_config(self) -> list[dict]:
+        self.config_reads += 1
+        if self.fail:
+            raise DataCloudError(500, 'INTERNAL', 'boom')
+        return self.user_config
 
     async def set_state(self, agent_id: str, content: str, source: str, version: int | None = None) -> dict:
         if self.fail:
@@ -43,13 +52,16 @@ def model(monkeypatch):
 
     class FakeCore:
         answer = json.dumps({'skip': False, 'state': 'new board', 'events': [{'content': 'Boss 叫 agent 做嘢；agent 做完'}], 'facts': []})
+        calls = 0
 
         def __init__(self, agent_id: str = '', path=(), extras=None):
             pass
 
         async def chat(self, provider, messages, prompts, tools):
+            FakeCore.calls += 1
             return [*messages, AssistantMessage(FakeCore.answer)], None
 
+    FakeCore.calls = 0
     monkeypatch.setattr(writer_module, 'AgentCore', FakeCore)
     return FakeCore
 
@@ -112,6 +124,81 @@ async def test_the_flag_switches_it_off(model):
     await app.write_turn_memory(session_id='s1', source='TUI', session=finished_session(), extras=extras(client))
 
     assert client.created == []
+
+
+def switched_off(*keys: str) -> list[dict]:
+    """The config rows an account has after flipping these switches off."""
+    return [{'key': key, 'value': False} for key in keys]
+
+
+async def test_turning_the_event_log_off_keeps_the_state(model):
+    client = FakeClient()
+    client.user_config = switched_off(EVENT_LOG_KEY)
+    app = make_app()
+
+    await app.write_turn_memory(session_id='s1', source='TUI', session=finished_session(), extras=extras(client))
+
+    assert client.created == []
+    assert client.states == [{'agent_id': 'agent-1', 'content': 'new board', 'version': 3}]
+
+
+async def test_turning_the_state_off_keeps_the_event_log(model):
+    client = FakeClient()
+    client.user_config = switched_off(STATE_UPDATE_KEY)
+    app = make_app()
+
+    await app.write_turn_memory(session_id='s1', source='TUI', session=finished_session(), extras=extras(client))
+
+    assert [row['kind'] for row in client.created] == ['event']
+    assert client.states == []
+    # Nothing is going to be written to the board, so it is not read either.
+    assert client.state_reads == 0
+
+
+async def test_both_off_costs_no_model_call(model):
+    client = FakeClient()
+    client.user_config = switched_off(EVENT_LOG_KEY, STATE_UPDATE_KEY)
+    app = make_app()
+
+    await app.write_turn_memory(session_id='s1', source='TUI', session=finished_session(), extras=extras(client))
+
+    assert model.calls == 0
+    assert client.created == []
+    assert client.states == []
+
+
+async def test_a_setting_that_cannot_be_read_leaves_both_on(model):
+    client = FakeClient()
+    client.user_config = switched_off(EVENT_LOG_KEY, STATE_UPDATE_KEY)
+    client.fail = True
+    app = make_app()
+
+    await app.write_turn_memory(session_id='s1', source='TUI', session=finished_session(), extras=extras(client))
+
+    # Every call fails here, so nothing is stored either way: what matters is
+    # that the writer still tried instead of treating a failed read as "off".
+    assert model.calls == 1
+
+
+async def test_a_stored_true_is_still_on(model):
+    client = FakeClient()
+    client.user_config = [{'key': key, 'value': True} for key in (EVENT_LOG_KEY, STATE_UPDATE_KEY)]
+    app = make_app()
+
+    await app.write_turn_memory(session_id='s1', source='TUI', session=finished_session(), extras=extras(client))
+
+    assert [row['kind'] for row in client.created] == ['event']
+    assert len(client.states) == 1
+
+
+async def test_the_task_source_can_still_forbid_the_state_on_its_own(model):
+    client = FakeClient()
+    app = make_app()
+
+    await app.write_turn_memory(session_id='s1', source='TASK', session=finished_session(), extras=extras(client), allow_state_update=False)
+
+    assert [row['kind'] for row in client.created] == ['event']
+    assert client.states == []
 
 
 async def test_a_cloud_failure_never_escapes(model):
