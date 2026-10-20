@@ -70,7 +70,7 @@ def sent_user_message(core: FakeCore, index: int = 0) -> UserMessage:
 
 
 async def test_chat_attaches_images_to_user_message(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     events = []
 
     async def on_msg(ev):
@@ -85,13 +85,13 @@ async def test_chat_attaches_images_to_user_message(fake_core):
 
 
 async def test_chat_without_images_keeps_empty_list(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     await app.chat('hi', TestAgent(), session_id='abc')
     assert sent_user_message(fake_core.instances[0]).images == []
 
 
 async def test_chat_accepts_images_without_text(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     await app.chat('', TestAgent(), session_id='abc', images=['data:image/png;base64,AAA'])
     message = sent_user_message(fake_core.instances[0])
     assert message.content == ''
@@ -100,7 +100,7 @@ async def test_chat_accepts_images_without_text(fake_core):
 
 
 async def test_chat_copies_caller_image_list(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     images = ['data:image/png;base64,AAA']
     await app.chat('look', TestAgent(), session_id='abc', images=images)
     images.append('data:image/png;base64,BBB')
@@ -108,7 +108,7 @@ async def test_chat_copies_caller_image_list(fake_core):
 
 
 async def test_chat_replays_images_on_next_turn(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     await app.chat('look', TestAgent(), session_id='abc', images=['data:image/png;base64,AAA'])
     await app.chat('and now', TestAgent(), session_id='abc')
     history = sent_history(fake_core.instances[1])
@@ -118,7 +118,7 @@ async def test_chat_replays_images_on_next_turn(fake_core):
 
 async def test_chat_persists_images_across_reload(fake_core, tmp_path):
     storage = JSONLStorage(tmp_path)
-    app = AgentApp([Provider('m', 'k', 'http://x', 0, name='p1')], storage=storage)
+    app = AgentApp([Provider('m', 'http://x', 0, 'k', name='p1')], storage=storage)
     await app.chat('look', TestAgent(), session_id='abc', images=['data:image/png;base64,AAA'])
     mgr = SessionManager(storage)
     await mgr.load()
@@ -129,7 +129,7 @@ async def test_chat_persists_images_across_reload(fake_core, tmp_path):
 
 
 async def test_chat_keeps_images_when_provider_retries(fake_core, monkeypatch):
-    app = make_app(Provider('m1', 'k', 'http://a', 1, name='p1'), Provider('m2', 'k', 'http://b', 2, name='p2'))
+    app = make_app(Provider('m1', 'http://a', 1, 'k', name='p1'), Provider('m2', 'http://b', 2, 'k', name='p2'))
     fake_core.errors = 1
 
     async def no_sleep(_):

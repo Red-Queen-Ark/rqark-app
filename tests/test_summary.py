@@ -30,7 +30,7 @@ def make_helper(monkeypatch, max_messages=100) -> Compactor:
     FakeCompactCore.instances = []
     FakeCompactCore.max_messages = max_messages
     monkeypatch.setattr('rqark_app.compact.compactor.AgentCore', FakeCompactCore)
-    return Compactor(ProviderManager([Provider('m', 'k', 'http://x', 0, name='p1')]))
+    return Compactor(ProviderManager([Provider('m', 'http://x', 0, 'k', name='p1')]))
 
 
 def test_compact_messages_keeps_only_user_and_assistant_content():

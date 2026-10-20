@@ -4,7 +4,7 @@ from rqark_app.provider.manager import ProviderManager
 
 
 def make_manager() -> ProviderManager:
-    providers = [Provider('', '', '', 1, name='p1'), Provider('', '', '', 2, name='p2'), Provider('', '', '', 4, name='p3'), Provider('', '', '', 3, name='p4')]
+    providers = [Provider('', '', 1, name='p1'), Provider('', '', 2, name='p2'), Provider('', '', 4, name='p3'), Provider('', '', 3, name='p4')]
     return ProviderManager(providers)
 
 

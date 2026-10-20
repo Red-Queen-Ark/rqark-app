@@ -55,7 +55,7 @@ def model(monkeypatch):
 
 
 def make_app() -> AgentApp:
-    return AgentApp([Provider('m', 'k', 'http://x', 0, name='p1')])
+    return AgentApp([Provider('m', 'http://x', 0, 'k', name='p1')])
 
 
 def extras(client: FakeClient | None, agent_id: str | None = 'agent-1') -> dict:

@@ -74,7 +74,7 @@ def make_app(*providers) -> AgentApp:
 
 
 async def test_chat_passes_path_and_composite_agent_id(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     await app.chat('hi', TestAgent(), path=('parent:1',))
     core = fake_core.instances[0]
     assert core.path == ('parent:1',)
@@ -82,26 +82,26 @@ async def test_chat_passes_path_and_composite_agent_id(fake_core):
 
 
 async def test_chat_default_path_is_empty(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     await app.chat('hi', TestAgent())
     assert fake_core.instances[0].path == ()
 
 
 async def test_chat_passes_extras_to_the_core(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     extras = {'data_cloud': 'client', 'agent_id': 'agent-1', 'source': 'TUI'}
     await app.chat('hi', TestAgent(), extras=extras)
     assert fake_core.instances[0].extras is extras
 
 
 async def test_chat_without_extras_leaves_the_core_extras_empty(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     await app.chat('hi', TestAgent())
     assert fake_core.instances[0].extras is None
 
 
 async def test_chat_emits_message_event_with_path(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     events = []
 
     async def on_msg(ev):
@@ -116,7 +116,7 @@ async def test_chat_emits_message_event_with_path(fake_core):
 
 
 async def test_chat_creates_new_session(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     await app.chat('hi', TestAgent())
     assert len(app.session_mgr.sessions_map) == 1
     session = next(iter(app.session_mgr.sessions_map.values()))
@@ -124,7 +124,7 @@ async def test_chat_creates_new_session(fake_core):
 
 
 async def test_chat_reuses_session_and_accumulates_history(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     await app.chat('first', TestAgent(), session_id='abc')
     await app.chat('second', TestAgent(), session_id='abc')
     assert set(app.session_mgr.sessions_map) == {'abc'}
@@ -134,8 +134,8 @@ async def test_chat_reuses_session_and_accumulates_history(fake_core):
 
 
 async def test_provider_switched_emits_event(fake_core, monkeypatch):
-    p1 = Provider('m1', 'k', 'http://a', 1, name='p1')
-    p2 = Provider('m2', 'k', 'http://b', 2, name='p2')
+    p1 = Provider('m1', 'http://a', 1, 'k', name='p1')
+    p2 = Provider('m2', 'http://b', 2, 'k', name='p2')
     app = make_app(p1, p2)
     switches = []
 
@@ -157,7 +157,7 @@ async def test_provider_switched_emits_event(fake_core, monkeypatch):
 
 
 async def test_usage_chunk_is_forwarded_as_a_usage_event(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     events = []
 
     async def on_usage(ev):
@@ -175,7 +175,7 @@ async def test_usage_chunk_is_forwarded_as_a_usage_event(fake_core):
 
 
 async def test_usage_chunk_without_a_usage_payload_is_ignored(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     events = []
 
     async def on_usage(ev):
@@ -188,7 +188,7 @@ async def test_usage_chunk_without_a_usage_payload_is_ignored(fake_core):
 
 
 async def test_chat_persists_the_assistant_usage_into_the_session(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     fake_core.reply_usage = Usage(100, 20, 120, cached_tokens=64, reasoning_tokens=8)
 
     session = await app.chat('hi', TestAgent(), session_id='abc')
@@ -201,7 +201,7 @@ async def test_chat_persists_the_assistant_usage_into_the_session(fake_core):
 
 async def test_chat_writes_usage_into_the_jsonl_file(fake_core, tmp_path):
     storage = JSONLStorage(tmp_path)
-    app = AgentApp([Provider('m', 'k', 'http://x', 0, name='p1')], storage=storage)
+    app = AgentApp([Provider('m', 'http://x', 0, 'k', name='p1')], storage=storage)
     fake_core.reply_usage = Usage(100, 20, 120, cached_tokens=64, reasoning_tokens=8)
 
     await app.chat('hi', TestAgent(), session_id='abc')
@@ -212,7 +212,7 @@ async def test_chat_writes_usage_into_the_jsonl_file(fake_core, tmp_path):
 
 
 async def test_every_assistant_message_in_a_tool_turn_keeps_its_own_usage(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     fake_core.reply = [
         AssistantMessage('calling', tool_calls=[ToolCall('c1', 'function', 'fn', '{}')], usage=Usage(10, 1, 11)),
         ToolMessage('c1', 'result'),
@@ -280,7 +280,7 @@ async def test_jsonl_storage_loads_legacy_files_without_message_timestamps(tmp_p
 
 async def test_chat_persists_session_to_storage(fake_core, tmp_path):
     storage = JSONLStorage(tmp_path)
-    app = AgentApp([Provider('m', 'k', 'http://x', 0, name='p1')], storage=storage)
+    app = AgentApp([Provider('m', 'http://x', 0, 'k', name='p1')], storage=storage)
     await app.chat('first', TestAgent(), session_id='abc')
     await app.chat('second', TestAgent(), session_id='abc')
     mgr = SessionManager(storage)
@@ -305,7 +305,7 @@ async def test_set_plan_updates_session_and_persists(tmp_path):
 
 
 async def test_handle_save_plan_wires_to_session(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     await app.chat('hi', TestAgent(), session_id='abc')
     session = app.session_mgr.sessions_map['abc']
     ev = AgentPayload('wednesday:abc', ('parent:1',), [PlanItem('p1', 'do stuff', 'pending')])
@@ -314,7 +314,7 @@ async def test_handle_save_plan_wires_to_session(fake_core):
 
 
 async def test_chat_seeds_the_core_with_the_session_plan(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     await app.chat('hi', TestAgent(), session_id='abc')
     await app.handle_save_plan(AgentPayload('wednesday:abc', ('parent:1',), [PlanItem('p1', 'do stuff', 'in_progress')]))
 
@@ -325,13 +325,13 @@ async def test_chat_seeds_the_core_with_the_session_plan(fake_core):
 
 
 async def test_chat_seeds_an_empty_plan_for_a_new_session(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     await app.chat('hi', TestAgent())
     assert fake_core.instances[-1].plan_items == []
 
 
 async def test_chat_seeded_plan_items_are_copies(fake_core):
-    app = make_app(Provider('m', 'k', 'http://x', 0, name='p1'))
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     await app.chat('hi', TestAgent(), session_id='abc')
     session = app.session_mgr.sessions_map['abc']
     session.plan_items = [PlanItem('p1', 'do stuff', 'pending')]
@@ -344,11 +344,11 @@ async def test_chat_seeded_plan_items_are_copies(fake_core):
 
 async def test_chat_seeds_the_plan_after_a_storage_reload(fake_core, tmp_path):
     storage = JSONLStorage(tmp_path)
-    app = AgentApp([Provider('m', 'k', 'http://x', 0, name='p1')], storage=storage)
+    app = AgentApp([Provider('m', 'http://x', 0, 'k', name='p1')], storage=storage)
     await app.chat('hi', TestAgent(), session_id='abc')
     await app.handle_save_plan(AgentPayload('wednesday:abc', ('parent:1',), [PlanItem('p1', 'do stuff', 'pending')]))
 
-    restarted = AgentApp([Provider('m', 'k', 'http://x', 0, name='p1')], storage=storage)
+    restarted = AgentApp([Provider('m', 'http://x', 0, 'k', name='p1')], storage=storage)
     await restarted.session_mgr.load()
     await restarted.chat('second', TestAgent(), session_id='abc')
 
@@ -376,7 +376,7 @@ def test_parse_dt_naive_assumes_utc():
 
 async def test_chat_saves_snapshot_on_terminal_error(fake_core, tmp_path):
     storage = JSONLStorage(tmp_path)
-    app = AgentApp([Provider('m', 'k', 'http://x', 0, name='p1')], storage=storage)
+    app = AgentApp([Provider('m', 'http://x', 0, 'k', name='p1')], storage=storage)
     fake_core.terminal_error = RuntimeError('boom')
     with pytest.raises(RuntimeError):
         await app.chat('hi', TestAgent(), session_id='abc')
