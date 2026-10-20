@@ -25,7 +25,7 @@ OVERFLOW_BODY = {'error': {'message': "This model's maximum context length is 81
 
 
 def make_provider(name: str, priority: int, model: str = 'm') -> Provider:
-    return Provider(model, 'k', f'http://{name}', priority, name=name)
+    return Provider(model, f'http://{name}', priority, 'k', name=name)
 
 
 class ScriptedCore:

@@ -183,7 +183,7 @@ async def test_a_subagent_child_core_carries_the_task_origin_refusal(monkeypatch
     monkeypatch.setattr('rqark_core.tools.subagent.AgentCore', ChildCore)
 
     tool = SubAgent([], [Task()])
-    provider = Provider('model', 'key', 'http://test', 0)
+    provider = Provider('model', 'http://test', 0, 'key')
     result = await tool.run(ctx=ToolContext(core=AgentCore(), provider=provider, extras=extras), prompt='go')
 
     assert result == 'Error: a task run may only list tasks'
