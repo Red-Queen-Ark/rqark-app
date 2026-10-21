@@ -6,6 +6,8 @@ from rqark_core.types.chat import UserMessage
 from rqark_core.types.event import AgentPayload
 from rqark_core.types.provider import Provider
 
+from rqark_app._app.core import create_core
+from rqark_app.cloud.client import RQArkDataCloudClient
 from rqark_app.prompts.title import GentTilte
 from rqark_app.provider.manager import ProviderManager
 from rqark_app.session.manager import SessionManager
@@ -14,10 +16,11 @@ from rqark_app.types.session import Session
 
 
 class ChatHelper:
-    def __init__(self, provider_mgr: ProviderManager, session_mgr: SessionManager, emit: Callable[..., Awaitable[None]]):
+    def __init__(self, provider_mgr: ProviderManager, session_mgr: SessionManager, emit: Callable[..., Awaitable[None]], cloud_client: RQArkDataCloudClient | None = None):
         self.provider_mgr = provider_mgr
         self.session_mgr = session_mgr
         self._emit = emit
+        self.cloud_client = cloud_client
 
     async def report_failure(self, core: AgentCore, provider: Provider):
         self.provider_mgr.report_failure()
@@ -29,7 +32,7 @@ class ChatHelper:
         session = await self.session_mgr.get(session_id)
         if session is None:
             return None
-        core = AgentCore('GenTitle')
+        core = create_core('GenTitle', self.cloud_client)
         provider = self.provider_mgr.provider
         for _ in range(3):
             new_messages, error = await core.chat(provider, [UserMessage(content)], [GentTilte()], [])

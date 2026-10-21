@@ -69,8 +69,7 @@ def scripted_core(monkeypatch):
     ScriptedCore.api_errors = 0
     ScriptedCore.overflow_errors = 0
     ScriptedCore.summary = 'SUMMARY'
-    monkeypatch.setattr('rqark_app.app.AgentCore', ScriptedCore)
-    monkeypatch.setattr('rqark_app.compact.compactor.AgentCore', ScriptedCore)
+    monkeypatch.setattr('rqark_app._app.core.AgentCore', ScriptedCore)
     return ScriptedCore
 
 
@@ -147,7 +146,7 @@ async def test_context_overflow_retries_original_history_when_summary_unavailabl
     scripted_core.overflow_errors = 1
     app = AgentApp([make_provider('p1', 0)])
 
-    async def no_summary(_):
+    async def no_summary(_, __=None):
         return None
 
     monkeypatch.setattr(app.compactor, 'get_summary', no_summary)

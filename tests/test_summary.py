@@ -12,7 +12,7 @@ class FakeCompactCore:
     instances: list['FakeCompactCore'] = []
     max_messages = 100
 
-    def __init__(self, agent_id: str = '', path: tuple[str, ...] = ()):
+    def __init__(self, agent_id: str = '', path: tuple[str, ...] = (), extras=None):
         self.agent_id = agent_id
         self.path = path
         self.chat_calls: list[list] = []
@@ -29,7 +29,7 @@ class FakeCompactCore:
 def make_helper(monkeypatch, max_messages=100) -> Compactor:
     FakeCompactCore.instances = []
     FakeCompactCore.max_messages = max_messages
-    monkeypatch.setattr('rqark_app.compact.compactor.AgentCore', FakeCompactCore)
+    monkeypatch.setattr('rqark_app._app.core.AgentCore', FakeCompactCore)
     return Compactor(ProviderManager([Provider('m', 'http://x', 0, 'k', name='p1')]))
 
 

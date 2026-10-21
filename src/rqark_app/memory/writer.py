@@ -3,10 +3,10 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from rqark_core.core import AgentCore
 from rqark_core.types.chat import AssistantMessage, ToolMessage, UserMessage
 from rqark_core.types.prompt import BasePrompt, PromptContext
 
+from rqark_app._app.core import create_core
 from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
 from rqark_app.provider.manager import ProviderManager
 from rqark_app.types.session import Session
@@ -81,7 +81,7 @@ class TurnMemoryWriter:
     async def _ask(self, user_text: str, assistant_text: str, tool_calls: list[str], session_id: str, current_state: dict | None) -> dict:
         """One model call: the state as it stands plus the turn, into JSON."""
         request = {'current_state': (current_state or {}).get('content') or '', 'user_message': user_text, 'assistant_reply': assistant_text, 'tool_calls': tool_calls}
-        core = AgentCore('Memory')
+        core = create_core('Memory', self.client)
         messages, error = await core.chat(self.provider_mgr.provider, [UserMessage(json.dumps(request, ensure_ascii=False))], [MemoryWritePrompt()], [])
         if error is not None:
             logger.warning('memory writer model call failed session=%s error=%s', session_id, error)
