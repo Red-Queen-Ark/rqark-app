@@ -6,11 +6,13 @@ from rqark_core.types.chat import AssistantMessage, UserMessage
 from rqark_core.types.provider import Provider
 
 from rqark_app.app import AgentApp
-from rqark_app.cloud.client import DataCloudError
+from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
 from rqark_app.memory import EVENT_LOG_KEY, STATE_UPDATE_KEY
 from rqark_app.memory import writer as writer_module
 from rqark_app.prompts.memory import PROMPT_KEY
+from rqark_app.session.storage import CloudStorage
 from rqark_app.tools.context import AGENT_KEY, CLIENT_KEY, SOURCE_KEY
+from rqark_app.types.cloud import CloudConfig
 from rqark_app.types.session import Session
 
 
@@ -62,12 +64,24 @@ def model(monkeypatch):
             return [*messages, AssistantMessage(FakeCore.answer)], None
 
     FakeCore.calls = 0
-    monkeypatch.setattr(writer_module, 'create_core', lambda name, cloud_client=None, path=(), extras=None: FakeCore(name, path, extras))
+    seen_cloud_clients: list = []
+
+    def build_core(name, cloud_client=None, path=(), extras=None):
+        seen_cloud_clients.append(cloud_client)
+        return FakeCore(name, path, extras)
+
+    monkeypatch.setattr(writer_module, 'create_core', build_core)
+    FakeCore.cloud_clients = seen_cloud_clients
     return FakeCore
 
 
 def make_app() -> AgentApp:
     return AgentApp([Provider('m', 'http://x', 0, 'k', name='p1')])
+
+
+def make_proxying_app() -> AgentApp:
+    client = RQArkDataCloudClient(CloudConfig(True, 'https://cloud.test', 'token'))
+    return AgentApp([Provider('m', 'http://x', 0, 'k', name='p1')], CloudStorage(client))
 
 
 def extras(client: FakeClient | None, agent_id: str | None = 'agent-1') -> dict:
@@ -288,3 +302,17 @@ async def test_the_drain_gives_up_after_its_deadline(model, monkeypatch):
 async def test_the_drain_is_free_when_nothing_runs(model):
     app = make_app()
     await app.drain_memory_writes(timeout=0.01)
+
+
+async def test_the_writer_does_not_proxy_when_the_app_does_not(model):
+    app = make_app()
+    await app.write_turn_memory(session_id='s1', source='TASK', session=finished_session(), extras=extras(FakeClient()), allow_state_update=False)
+
+    assert model.cloud_clients == [None]
+
+
+async def test_the_writer_proxies_when_the_app_does(model):
+    app = make_proxying_app()
+    await app.write_turn_memory(session_id='s1', source='TUI', session=finished_session(), extras=extras(FakeClient()))
+
+    assert isinstance(model.cloud_clients[0], RQArkDataCloudClient)
