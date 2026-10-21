@@ -126,7 +126,7 @@ class AgentApp(AgentAppEventEmitter):
             async with asyncio.timeout(TURN_MEMORY_TIMEOUT):
                 current_state = await self._current_state(client, str(agent_id), extras) if settings.state_update else None
                 user_text, assistant_text, tool_calls = turn_from_session(session)
-                writer = TurnMemoryWriter(self.provider_mgr, client)
+                writer = TurnMemoryWriter(self.provider_mgr, client, cloud_client=self.cloud_client)
                 await writer.write(
                     agent_id=str(agent_id),
                     source=source,

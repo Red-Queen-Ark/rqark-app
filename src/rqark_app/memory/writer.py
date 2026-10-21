@@ -57,9 +57,10 @@ class TurnMemoryWriter:
     the log could not be extended.
     """
 
-    def __init__(self, provider_mgr: ProviderManager, client: RQArkDataCloudClient):
+    def __init__(self, provider_mgr: ProviderManager, client: RQArkDataCloudClient, cloud_client: RQArkDataCloudClient | None = None):
         self.provider_mgr = provider_mgr
         self.client = client
+        self.cloud_client = cloud_client
 
     async def write(self, *, agent_id: str, source: str, user_text: str, assistant_text: str, tool_calls: list[str], session_id: str, current_state: dict | None, allow_state_update: bool = True, write_events: bool = True) -> None:
         if should_skip(user_text, assistant_text, tool_calls):
@@ -81,7 +82,7 @@ class TurnMemoryWriter:
     async def _ask(self, user_text: str, assistant_text: str, tool_calls: list[str], session_id: str, current_state: dict | None) -> dict:
         """One model call: the state as it stands plus the turn, into JSON."""
         request = {'current_state': (current_state or {}).get('content') or '', 'user_message': user_text, 'assistant_reply': assistant_text, 'tool_calls': tool_calls}
-        core = create_core('Memory', self.client)
+        core = create_core('Memory', self.cloud_client)
         messages, error = await core.chat(self.provider_mgr.provider, [UserMessage(json.dumps(request, ensure_ascii=False))], [MemoryWritePrompt()], [])
         if error is not None:
             logger.warning('memory writer model call failed session=%s error=%s', session_id, error)
