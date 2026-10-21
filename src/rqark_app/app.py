@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 TURN_MEMORY_TIMEOUT = 15.0
 TURN_MEMORY_DRAIN_TIMEOUT = 5.0
+_DERIVE_CLOUD_CLIENT = object()
 
 
 def _auto_write_default() -> bool:
@@ -40,10 +41,26 @@ def _auto_write_default() -> bool:
     return raw not in {'0', 'false', 'no', 'off'}
 
 
+def _resolve_cloud_client(storage: SessionStorage | None, cloud_client: RQArkDataCloudClient | None | object) -> RQArkDataCloudClient | None:
+    """The client a turn proxies through: given one when the caller decided, otherwise the storage's own.
+
+    Passing None explicitly is how a caller keeps the provider's own key: a task
+    run holds a run-scoped token, which the data cloud does not accept for model
+    calls, so it cannot use the proxy even though it stores in the cloud.
+    """
+    if isinstance(cloud_client, RQArkDataCloudClient):
+        return cloud_client
+    if cloud_client is not _DERIVE_CLOUD_CLIENT:
+        return None
+    if isinstance(storage, CloudStorage):
+        return storage.client
+    return None
+
+
 class AgentApp(AgentAppEventEmitter):
-    def __init__(self, providers: list[Provider], storage: SessionStorage | None = None, cloud_client: RQArkDataCloudClient | None = None):
+    def __init__(self, providers: list[Provider], storage: SessionStorage | None = None, cloud_client: RQArkDataCloudClient | None | object = _DERIVE_CLOUD_CLIENT):
         super().__init__()
-        self.cloud_client = cloud_client or (storage.client if isinstance(storage, CloudStorage) else None)
+        self.cloud_client: RQArkDataCloudClient | None = _resolve_cloud_client(storage, cloud_client)
         self.provider_mgr = ProviderManager(providers)
         self.session_mgr = SessionManager(storage)
         self.chat_helper = ChatHelper(self.provider_mgr, self.session_mgr, self._emit, self.cloud_client)
