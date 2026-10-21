@@ -105,7 +105,9 @@ class AgentApp(AgentAppEventEmitter):
         What gets written is the account's call: two switches in the user config
         (memory.event_log and memory.state_update) can turn either half off, and
         they are read here so a flip in the web UI applies to the next turn.
-        Both off also means no model call and no state read.
+        memory.event_log stops both rows this writer leaves (the event and the
+        occasional fact) but not a fact the agent saves itself; both off also
+        means no model call and no state read.
         """
         if not self.auto_write_memory:
             return
@@ -136,7 +138,7 @@ class AgentApp(AgentAppEventEmitter):
                     session_id=session_id,
                     current_state=current_state,
                     allow_state_update=allow_state_update and settings.state_update,
-                    write_events=settings.event_log,
+                    write_log=settings.event_log,
                 )
         except TimeoutError:
             logger.warning('memory writer timed out session=%s', session_id)

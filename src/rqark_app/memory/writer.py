@@ -52,6 +52,10 @@ class MemoryWritePrompt(BasePrompt):
 class TurnMemoryWriter:
     """Records one finished turn: one event, sometimes a fact, and the new state.
 
+    The event and the fact are the writer's own logging of the turn and are
+    turned off together by the account's memory.event_log switch; a fact the
+    agent saved itself through memory_save is a different thing and stays.
+
     The writer never raises for a cloud failure: memory is a background
     enrichment, and a turn that has already been answered must not fail because
     the log could not be extended.
@@ -62,7 +66,7 @@ class TurnMemoryWriter:
         self.client = client
         self.cloud_client = cloud_client
 
-    async def write(self, *, agent_id: str, source: str, user_text: str, assistant_text: str, tool_calls: list[str], session_id: str, current_state: dict | None, allow_state_update: bool = True, write_events: bool = True) -> None:
+    async def write(self, *, agent_id: str, source: str, user_text: str, assistant_text: str, tool_calls: list[str], session_id: str, current_state: dict | None, allow_state_update: bool = True, write_log: bool = True) -> None:
         if should_skip(user_text, assistant_text, tool_calls):
             return
 
@@ -75,9 +79,9 @@ class TurnMemoryWriter:
 
         if allow_state_update:
             await self._write_state(agent_id, source, session_id, current_state, answer.get('state'))
-        if write_events:
+        if write_log:
             await self._write_rows(agent_id, source, session_id, answer.get('events'), kind='event')
-        await self._write_rows(agent_id, source, session_id, answer.get('facts'), kind='fact')
+            await self._write_rows(agent_id, source, session_id, answer.get('facts'), kind='fact')
 
     async def _ask(self, user_text: str, assistant_text: str, tool_calls: list[str], session_id: str, current_state: dict | None) -> dict:
         """One model call: the state as it stands plus the turn, into JSON."""

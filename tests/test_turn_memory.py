@@ -156,6 +156,30 @@ async def test_turning_the_event_log_off_keeps_the_state(model):
     assert client.states == [{'agent_id': 'agent-1', 'content': 'new board', 'version': 3}]
 
 
+async def test_turning_the_event_log_off_stops_the_automatic_facts(model):
+    model.answer = json.dumps({'skip': False, 'state': 'new board', 'events': [], 'facts': [{'content': 'Boss 用 pytest', 'keywords': ['pytest']}]})
+    client = FakeClient()
+    client.user_config = switched_off(EVENT_LOG_KEY)
+    app = make_app()
+
+    await app.write_turn_memory(session_id='s1', source='TUI', session=finished_session(), extras=extras(client))
+
+    assert model.calls == 1
+    assert client.created == []
+    assert client.states == [{'agent_id': 'agent-1', 'content': 'new board', 'version': 3}]
+
+
+async def test_the_log_on_still_writes_the_event_and_the_fact(model):
+    model.answer = json.dumps({'skip': False, 'state': 'new board', 'events': [{'content': 'Boss 叫 agent 做嘢；agent 做完'}], 'facts': [{'content': 'Boss 用 pytest', 'keywords': ['pytest']}]})
+    client = FakeClient()
+    client.user_config = switched_off(STATE_UPDATE_KEY)
+    app = make_app()
+
+    await app.write_turn_memory(session_id='s1', source='TUI', session=finished_session(), extras=extras(client))
+
+    assert [row['kind'] for row in client.created] == ['event', 'fact']
+
+
 async def test_turning_the_state_off_keeps_the_event_log(model):
     client = FakeClient()
     client.user_config = switched_off(STATE_UPDATE_KEY)
