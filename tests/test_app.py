@@ -4,12 +4,14 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import pytest
 from openai import APIError
+from rqark_core.prompts import RolePrompt
 from rqark_core.types.chat import AssistantMessage, Chunk, SystemMessage, ToolCall, ToolMessage, Usage, UserMessage
 from rqark_core.types.event import AgentPayload
 from rqark_core.types.provider import Provider
 from rqark_core.types.tool import PlanItem
 
 from rqark_app.app import AgentApp
+from rqark_app.memory import USER_NAME_KEY
 from rqark_app.session.manager import SessionManager
 from rqark_app.session.storage import JSONLStorage
 from rqark_app.types.agent import BaseAgent
@@ -20,6 +22,13 @@ class TestAgent(BaseAgent):
     name = 'wednesday'
     description = ''
     prompts = []
+    tools = []
+
+
+class RoleAgent(BaseAgent):
+    name = 'angel'
+    description = ''
+    prompts = [RolePrompt('Angel Holiday', 'Boss')]
     tools = []
 
 
@@ -98,6 +107,20 @@ async def test_chat_without_extras_leaves_the_core_extras_empty(fake_core):
     app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
     await app.chat('hi', TestAgent())
     assert fake_core.instances[0].extras is None
+
+
+async def test_chat_carries_the_role_prompt_user_name_in_extras(fake_core):
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
+    extras: dict = {'agent_id': 'agent-1'}
+    await app.chat('hi', RoleAgent(), extras=extras)
+    assert extras[USER_NAME_KEY] == 'Boss'
+
+
+async def test_chat_without_a_role_prompt_uses_the_plain_user_name(fake_core):
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
+    extras: dict = {'agent_id': 'agent-1'}
+    await app.chat('hi', TestAgent(), extras=extras)
+    assert extras[USER_NAME_KEY] == 'User'
 
 
 async def test_chat_emits_message_event_with_path(fake_core):

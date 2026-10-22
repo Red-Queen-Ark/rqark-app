@@ -2,5 +2,8 @@ from .settings import EVENT_LOG_KEY as EVENT_LOG_KEY
 from .settings import STATE_UPDATE_KEY as STATE_UPDATE_KEY
 from .settings import MemorySettings as MemorySettings
 from .settings import load_memory_settings as load_memory_settings
+from .writer import DEFAULT_USER_NAME as DEFAULT_USER_NAME
+from .writer import USER_NAME_KEY as USER_NAME_KEY
 from .writer import TurnMemoryWriter as TurnMemoryWriter
 from .writer import turn_from_session as turn_from_session
+from .writer import user_name_from_prompts as user_name_from_prompts

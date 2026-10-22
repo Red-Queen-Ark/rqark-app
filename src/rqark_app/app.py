@@ -15,7 +15,7 @@ from rqark_app._app.event import AgentAppEventEmitter
 from rqark_app._app.helper import ChatHelper
 from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
 from rqark_app.compact import Compactor, is_context_overflow
-from rqark_app.memory import TurnMemoryWriter, load_memory_settings, turn_from_session
+from rqark_app.memory import DEFAULT_USER_NAME, USER_NAME_KEY, TurnMemoryWriter, load_memory_settings, turn_from_session, user_name_from_prompts
 from rqark_app.prompts.memory import PROMPT_KEY
 from rqark_app.provider.manager import ProviderManager
 from rqark_app.session.manager import SessionManager
@@ -81,6 +81,10 @@ class AgentApp(AgentAppEventEmitter):
 
     async def chat(self, content: str, agent: BaseAgent, session_id: str | None = None, path: tuple[str, ...] = (), images: list[str] | None = None, extras: dict[str, Any] | None = None) -> Session:
         session = await self.session_mgr.get_or_create(session_id) if session_id else await self.session_mgr.create()
+        if extras is not None:
+            # The memory writer runs its own core, without this agent's role prompt,
+            # so the name the turn addresses the human by is carried over in extras.
+            extras[USER_NAME_KEY] = user_name_from_prompts(agent.prompts)
         core = create_core(f'{agent.name}:{session.uuid}', self.cloud_client, path=path, extras=extras)
         # A core is created per turn, so the plan stored on the session must be seeded back
         # or plan_update would render "No active plan" for every turn of an ongoing plan.
@@ -128,6 +132,7 @@ class AgentApp(AgentAppEventEmitter):
             async with asyncio.timeout(TURN_MEMORY_TIMEOUT):
                 current_state = await self._current_state(client, str(agent_id), extras) if settings.state_update else None
                 user_text, assistant_text, tool_calls = turn_from_session(session)
+                user_name = extras.get(USER_NAME_KEY)
                 writer = TurnMemoryWriter(self.provider_mgr, client, cloud_client=self.cloud_client)
                 await writer.write(
                     agent_id=str(agent_id),
@@ -139,6 +144,7 @@ class AgentApp(AgentAppEventEmitter):
                     current_state=current_state,
                     allow_state_update=allow_state_update and settings.state_update,
                     write_log=settings.event_log,
+                    user_name=user_name if isinstance(user_name, str) and user_name.strip() else DEFAULT_USER_NAME,
                 )
         except TimeoutError:
             logger.warning('memory writer timed out session=%s', session_id)
