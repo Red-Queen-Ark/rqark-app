@@ -143,11 +143,25 @@ async def test_search_memory_posts_only_the_fields_it_was_given(build_client):
         return httpx.Response(200, json=[{'id': 'm1'}])
 
     client = build_client(handler)
-    rows = await client.search_memory('agent-1', query='reply', keywords=['reply'], at='2026-10-01T00:00:00Z')
+    rows = await client.search_memory('agent-1', query='reply', keywords=['reply'], start='2026-10-01T00:00:00Z', end='2026-10-31T00:00:00Z')
 
     assert rows == [{'id': 'm1'}]
     assert calls[0].url.path == '/api/memory/search'
-    assert json.loads(calls[0].content) == {'agent_id': 'agent-1', 'query': 'reply', 'keywords': ['reply'], 'at': '2026-10-01T00:00:00Z'}
+    assert json.loads(calls[0].content) == {'agent_id': 'agent-1', 'query': 'reply', 'keywords': ['reply'], 'from': '2026-10-01T00:00:00Z', 'to': '2026-10-31T00:00:00Z'}
+
+
+async def test_search_memory_sends_a_window_with_one_bound(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=[])
+
+    client = build_client(handler)
+    await client.search_memory('agent-1', start='2026-10-01T00:00:00Z')
+
+    # Either bound may be sent on its own: this is "from that date onwards".
+    assert json.loads(calls[0].content) == {'agent_id': 'agent-1', 'from': '2026-10-01T00:00:00Z'}
 
 
 async def test_search_memory_sends_only_the_agent_without_terms(build_client):
