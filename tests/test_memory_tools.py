@@ -19,8 +19,8 @@ class FakeClient:
         self.created.append(payload)
         return {'id': 'memory-1', 'content': payload['content'], 'occurred_at': payload.get('occurred_at')}
 
-    async def search_memory(self, agent_id: str, query: str | None = None, keywords: list[str] | None = None, at: str | None = None) -> list[dict]:
-        self.searched.append((agent_id, query, keywords, at))
+    async def search_memory(self, agent_id: str, query: str | None = None, keywords: list[str] | None = None, start: str | None = None, end: str | None = None) -> list[dict]:
+        self.searched.append((agent_id, query, keywords, start, end))
         return self.rows
 
 
@@ -100,15 +100,15 @@ async def test_save_requires_a_source_in_extras():
 async def test_search_uses_the_pair_from_extras():
     client = FakeClient()
     client.rows = [{'id': 'm1', 'content': 'Boss prefers short replies', 'keywords': ['reply'], 'occurred_at': '2026-10-01T00:00:00Z', 'pinned': False, 'hits': 3}]
-    result = await MemorySearch().run(ctx=context(client), query='reply', keywords=['reply', 'style'], at='2026-10-01T00:00:00Z')
-    assert client.searched == [('agent-1', 'reply', ['reply', 'style'], '2026-10-01T00:00:00Z')]
+    result = await MemorySearch().run(ctx=context(client), query='reply', keywords=['reply', 'style'], **{'from': '2026-10-01T00:00:00Z', 'to': '2026-10-31T00:00:00Z'})
+    assert client.searched == [('agent-1', 'reply', ['reply', 'style'], '2026-10-01T00:00:00Z', '2026-10-31T00:00:00Z')]
     assert json.loads(result) == [{'id': 'm1', 'content': 'Boss prefers short replies', 'keywords': ['reply'], 'kind': None, 'occurred_at': '2026-10-01T00:00:00Z', 'pinned': False}]
 
 
 async def test_search_without_arguments_sends_only_the_agent():
     client = FakeClient()
     await MemorySearch().run(ctx=context(client))
-    assert client.searched == [('agent-1', None, None, None)]
+    assert client.searched == [('agent-1', None, None, None, None)]
 
 
 def test_schemas_declare_the_tool_names():
@@ -116,3 +116,10 @@ def test_schemas_declare_the_tool_names():
     assert MemorySearch().name == 'memory_search'
     save_schema: dict[str, Any] = MemorySave().get_openai_schema()
     assert save_schema['function']['parameters']['required'] == ['content']
+
+
+def test_the_search_schema_offers_a_window_rather_than_a_single_bound():
+    properties = MemorySearch().get_openai_schema()['function']['parameters']['properties']
+    assert set(properties) == {'query', 'keywords', 'from', 'to'}
+    assert 'inclusive' in properties['from']['description']
+    assert 'inclusive' in properties['to']['description']

@@ -130,14 +130,22 @@ class RQArkDataCloudClient:
     async def delete_memory(self, uuid: str) -> None:
         await self.request('DELETE', f'memory/{uuid}')
 
-    async def search_memory(self, agent_id: str, query: str | None = None, keywords: list[str] | None = None, at: str | None = None) -> list[dict]:
+    async def search_memory(self, agent_id: str, query: str | None = None, keywords: list[str] | None = None, start: str | None = None, end: str | None = None) -> list[dict]:
+        """Search one agent's log, optionally inside a window of occurred_at.
+
+        `start` and `end` are ISO 8601 and both inclusive; either may be sent on
+        its own. The wire calls them `from` and `to`, the names the data cloud
+        reads.
+        """
         payload: dict = {'agent_id': agent_id}
         if query:
             payload['query'] = query
         if keywords:
             payload['keywords'] = keywords
-        if at:
-            payload['at'] = at
+        if start:
+            payload['from'] = start
+        if end:
+            payload['to'] = end
         return self._json(await self.request('POST', 'memory/search', json=payload)) or []
 
     async def prompt_memory(self, agent_id: str) -> dict:
