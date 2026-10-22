@@ -50,3 +50,7 @@ class CloudAgentCore(AgentCore):
         ssl_context = ssl.create_default_context(cafile=certifi.where())
         http_client = httpx2.AsyncClient(verify=ssl_context, auth=RefreshingAuth(self.cloud_client))
         return AsyncOpenAI(api_key=self.cloud_client.config.api_key, base_url=f'{self.cloud_client.api_url}/chat/{provider.id}', http_client=http_client, default_headers={}, timeout=self.timeout)
+
+    def _spawn(self, agent_id: str, path: tuple[str, ...], tool_timeout: float, extras: dict[str, Any]) -> AgentCore:
+        """A subagent goes through the same proxy as its parent, so it keeps the client."""
+        return CloudAgentCore(self.cloud_client, agent_id, path=path, timeout=self.timeout, tool_timeout=tool_timeout, extras=extras)
