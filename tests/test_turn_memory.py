@@ -7,7 +7,7 @@ from rqark_core.types.provider import Provider
 
 from rqark_app.app import AgentApp
 from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
-from rqark_app.memory import EVENT_LOG_KEY, STATE_UPDATE_KEY
+from rqark_app.memory import EVENT_LOG_KEY, STATE_UPDATE_KEY, USER_NAME_KEY
 from rqark_app.memory import writer as writer_module
 from rqark_app.prompts.memory import PROMPT_KEY
 from rqark_app.session.storage import CloudStorage
@@ -55,15 +55,18 @@ def model(monkeypatch):
     class FakeCore:
         answer = json.dumps({'skip': False, 'state': 'new board', 'events': [{'content': 'Boss 叫 agent 做嘢；agent 做完'}], 'facts': []})
         calls = 0
+        seen_prompts: list = []
 
         def __init__(self, agent_id: str = '', path=(), extras=None):
             pass
 
         async def chat(self, provider, messages, prompts, tools):
             FakeCore.calls += 1
+            FakeCore.seen_prompts.append(prompts)
             return [*messages, AssistantMessage(FakeCore.answer)], None
 
     FakeCore.calls = 0
+    FakeCore.seen_prompts = []
     seen_cloud_clients: list = []
 
     def build_core(name, cloud_client=None, path=(), extras=None):
@@ -109,6 +112,24 @@ async def test_a_finished_turn_writes_an_event_and_the_state(model):
     assert client.created[0]['agent_id'] == 'agent-1'
     assert client.created[0]['source'] == 'TUI'
     assert client.states == [{'agent_id': 'agent-1', 'content': 'new board', 'version': 3}]
+
+
+async def test_the_name_the_turn_carried_is_the_one_the_writer_uses(model):
+    client = FakeClient()
+    named = extras(client)
+    named[USER_NAME_KEY] = 'Boss'
+
+    await make_app().write_turn_memory(session_id='s1', source='TUI', session=finished_session(), extras=named)
+
+    assert model.seen_prompts[0][0].user_name == 'Boss'
+
+
+async def test_a_turn_with_no_name_records_as_plain_user(model):
+    client = FakeClient()
+
+    await make_app().write_turn_memory(session_id='s1', source='TUI', session=finished_session(), extras=extras(client))
+
+    assert model.seen_prompts[0][0].user_name == 'User'
 
 
 async def test_the_state_the_prompt_read_is_reused(model):

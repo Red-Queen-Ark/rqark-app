@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from rqark_core.prompts import RolePrompt
 from rqark_core.types.chat import AssistantMessage, ToolCall, ToolMessage, UserMessage
 
 from rqark_app.cloud.client import DataCloudError
@@ -112,6 +113,37 @@ async def test_the_model_is_asked_once_in_its_own_core(model):
     assert request['current_state'] == 'old board'
     assert request['user_message'] == 'Boss 叫 agent 修好 memory writer'
     assert request['tool_calls'] == ['exec python -m pytest']
+
+
+async def test_the_writer_prompt_names_the_human_the_turn_addressed():
+    text = await writer_module.MemoryWritePrompt('Boss').get_messages()
+    assert 'named Boss' in text
+    assert 'Boss asked for X; the agent did Y' in text
+    assert '{user_name}' not in text
+
+
+async def test_the_writer_prompt_defaults_to_plain_user():
+    text = await writer_module.MemoryWritePrompt().get_messages()
+    assert 'named User' in text
+    assert 'User asked for X; the agent did Y' in text
+    assert 'Boss' not in text
+
+
+async def test_the_role_prompt_name_reaches_the_writer(model):
+    model.answer = json.dumps(ANSWER, ensure_ascii=False)
+    await write(FakeClient(), user_name='Boss')
+    _, _, prompts, _ = model.calls[0]
+    assert prompts[0].user_name == 'Boss'
+
+
+def test_the_user_name_comes_from_a_role_prompt():
+    assert writer_module.user_name_from_prompts([RolePrompt('Angel Holiday', 'Boss')]) == 'Boss'
+
+
+def test_no_role_prompt_falls_back_to_plain_user():
+    assert writer_module.user_name_from_prompts([]) == 'User'
+    assert writer_module.user_name_from_prompts(None) == 'User'
+    assert writer_module.user_name_from_prompts([RolePrompt('Angel Holiday', '  ')]) == 'User'
 
 
 async def test_a_skip_answer_writes_nothing(model):
