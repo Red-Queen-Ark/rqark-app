@@ -84,3 +84,10 @@ async def test_without_a_refresh_hook_a_refusal_is_not_repeated():
 
     assert response.status_code == 401
     assert seen == 1
+
+
+def test_a_subagent_core_keeps_the_cloud_client():
+    core = CloudAgentCore(cloud_client())
+    child = core._spawn('child', ('root',), 600, {})
+    assert isinstance(child, CloudAgentCore)
+    assert child.cloud_client is core.cloud_client

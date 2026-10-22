@@ -180,11 +180,13 @@ async def test_a_subagent_child_core_carries_the_task_origin_refusal(monkeypatch
             result = await Task().run(ctx=ToolContext(extras=seen[-1]), action='create', name='x', prompt='p', agent_name='a', provider_name='b', schedule_kind='cron', cron_expr='0 9 * * *')
             return [AssistantMessage(result)], None
 
-    monkeypatch.setattr('rqark_core.tools.subagent.AgentCore', ChildCore)
+    class ParentCore(AgentCore):
+        def _spawn(self, agent_id: str, path: tuple[str, ...], tool_timeout: float, extras: dict[str, Any]) -> AgentCore:
+            return ChildCore(agent_id=agent_id, path=path, tool_timeout=tool_timeout, extras=extras)
 
     tool = SubAgent([], [Task()])
     provider = Provider('model', 'http://test', 0, 'key')
-    result = await tool.run(ctx=ToolContext(core=AgentCore(), provider=provider, extras=extras), prompt='go')
+    result = await tool.run(ctx=ToolContext(core=ParentCore(), provider=provider, extras=extras), prompt='go')
 
     assert result == 'Error: a task run may only list tasks'
     assert seen == [extras]
