@@ -4,10 +4,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from rqark_core.types.chat import AssistantMessage, ToolMessage, UserMessage
-from rqark_core.types.prompt import BasePrompt, PromptContext
 
 from rqark_app._app.core import create_core
 from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
+from rqark_app.prompts.memory_writer import DEFAULT_USER_NAME, MemoryWritePrompt
 from rqark_app.provider.manager import ProviderManager
 from rqark_app.types.session import Session
 
@@ -17,27 +17,7 @@ MAX_STATE_CHARS = 2000
 MAX_EVENT_CHARS = 200
 SHORT_REPLY_CHARS = 200
 TOOL_NOTE_CHARS = 200
-DEFAULT_USER_NAME = 'User'
 USER_NAME_KEY = 'user_name'
-
-_prompt = """
-You maintain the memory of one user for one agent. You are given the current state board, the user's message, the assistant's final reply, and a summary of the tools the assistant called during the turn. Reply with ONE JSON object and nothing else.
-
-The human in this turn is named {user_name}. Use that name when you write about them, and never invent another name.
-
-{"skip": false,
- "state": "the complete updated markdown of the state board",
- "events": [{"content": "{user_name} asked for X; the agent did Y", "keywords": ["x", "y"]}],
- "facts": [{"content": "a durable fact about the user", "keywords": ["..."]}]}
-
-The state board is what the next turn needs to know about right now: what is being worked on, what was just decided, what is still open. It is overwritten in full every turn, so write it as a complete brief, not a patch. Keep it under 2000 characters; compress older context rather than dropping the thread. Write it in the language of the conversation. Leave it unchanged when the turn changed nothing about the situation.
-
-An event is one line recording what this turn asked and did, under 200 characters, in the conversation's language, written as "{user_name} asked for X; the agent did Y". Write one event for a turn that did something. These lines are never injected into the prompt; they are found by search when someone needs them.
-
-A fact is a durable statement about the user that is still useful in another session: a preference, a decision, a deadline, an identity. Write a fact only when the user said something that will not expire with this conversation. Most turns have none, and a restated fact is not a new one.
-
-Set "skip" to true and leave the other fields empty when the turn is small talk, a bare question with a short answer, an interruption, or a failure: there is nothing worth recording. Recording noise makes the log useless.
-"""
 
 
 def user_name_from_prompts(prompts: Any) -> str:
@@ -52,26 +32,6 @@ def user_name_from_prompts(prompts: Any) -> str:
         if isinstance(name, str) and name.strip():
             return name.strip()
     return DEFAULT_USER_NAME
-
-
-class MemoryWritePrompt(BasePrompt):
-    """The instructions of the background memory writer.
-
-    Priority is irrelevant: the writer runs its own AgentCore with this prompt
-    alone, never inside the user's turn. The user's name is passed in because
-    that turn's RolePrompt is not part of this core.
-    """
-
-    priority: int = -1
-
-    def __init__(self, user_name: str = DEFAULT_USER_NAME) -> None:
-        self.user_name = user_name
-
-    async def get_messages(self, ctx: PromptContext | None = None) -> str | None:
-        return _prompt.replace('{user_name}', self.user_name)
-
-    def params(self) -> dict[str, str]:
-        return {'user_name': self.user_name}
 
 
 class TurnMemoryWriter:
