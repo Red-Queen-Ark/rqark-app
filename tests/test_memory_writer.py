@@ -129,6 +129,11 @@ async def test_the_writer_prompt_defaults_to_plain_user():
     assert 'Boss' not in text
 
 
+async def test_the_board_limit_in_the_prompt_matches_the_one_the_writer_enforces():
+    text = await writer_module.MemoryWritePrompt('Boss').get_messages()
+    assert f'under {writer_module.MAX_STATE_CHARS} characters' in text
+
+
 async def test_the_role_prompt_name_reaches_the_writer(model):
     model.answer = json.dumps(ANSWER, ensure_ascii=False)
     await write(FakeClient(), user_name='Boss')

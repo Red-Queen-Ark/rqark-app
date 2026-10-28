@@ -28,7 +28,7 @@ The board answers two questions and nothing else: which projects are being follo
 
 Rules for the board:
 - One item per line, one line per item. An item never continues onto a second line and never nests.
-- 跟進中 holds at most 8 lines, 對話 at most 3. The whole board stays under 600 characters; when it grows, merge or drop the oldest line.
+- 跟進中 holds at most 8 lines, 對話 at most 3. The whole board stays under 2000 characters; when it grows, merge or drop the oldest line.
 - A 跟進中 line is the macro picture: a project, where it stands, and the next move. A branch name, a commit hash, a file path, a function name, or an explanation of why something is the way it is does not belong here; that is what the event log is for.
 - 對話 is one rolling note of what {user_name} and the agent are working through and where they landed. Not a transcript.
 - An open question or a pending choice is not a section of its own: it goes into the next-action half of the line of the project it belongs to.
