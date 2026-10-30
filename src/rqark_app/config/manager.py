@@ -3,7 +3,7 @@ from pathlib import Path
 
 import httpx
 from rqark_core.prompts import AgentsMdPrompt, AntiSycophancyPrompt, CharacterPrompt, DateTimePrompt, GitProjectPrompt, PlatformPrompt, RolePrompt, SubAgentPrompt, WorkspacePrompt
-from rqark_core.tools import EditFile, Exec, Gitea, GitHub, GitLab, Grep, ListDir, PlanUpdate, ReadFile, SubAgent, WebFetch, WebSearch, WriteFile
+from rqark_core.tools import ConvertDocument, EditFile, Exec, Gitea, GitHub, GitLab, Grep, ListDir, PlanUpdate, ReadFile, SubAgent, WebFetch, WebSearch, WriteFile
 from rqark_core.types.prompt import BasePrompt
 from rqark_core.types.provider import Provider
 from rqark_core.types.tool import BaseTool
@@ -34,6 +34,7 @@ PROMPTS: dict[str, Callable[..., BasePrompt]] = {
 }
 
 TOOLS: dict[str, Callable[..., BaseTool]] = {
+    'ConvertDocument': ConvertDocument,
     'EditFile': EditFile,
     'Exec': Exec,
     'Gitea': Gitea,
