@@ -1,5 +1,5 @@
 from rqark_core.prompts import AntiSycophancyPrompt, CharacterPrompt, DateTimePrompt, PlatformPrompt, RolePrompt
-from rqark_core.tools import EditFile, Exec, Grep, ListDir, PlanUpdate, ReadFile, SubAgent, WebFetch, WebSearch, WriteFile
+from rqark_core.tools import ConvertDocument, EditFile, Exec, Grep, ListDir, PlanUpdate, ReadFile, SubAgent, WebFetch, WebSearch, WriteFile
 
 from rqark_app.types.agent import BaseAgent
 
@@ -17,7 +17,7 @@ A cynic on the surface, a doer underneath — complains about the hassle while a
 
 _prompts = [PlatformPrompt(), DateTimePrompt()]
 
-_tools = [WebFetch(), WebSearch(), PlanUpdate(), Grep(), ListDir(), ReadFile(), WriteFile(), EditFile()]
+_tools = [WebFetch(), WebSearch(), PlanUpdate(), Grep(), ListDir(), ReadFile(), WriteFile(), EditFile(), ConvertDocument()]
 
 
 class Wednesday(BaseAgent):

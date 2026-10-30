@@ -1,5 +1,5 @@
 from rqark_core.prompts import AgentsMdPrompt, AntiSycophancyPrompt, DateTimePrompt, GitProjectPrompt, PlatformPrompt, RolePrompt
-from rqark_core.tools import EditFile, Exec, Grep, ListDir, PlanUpdate, ReadFile, SubAgent, WebFetch, WebSearch, WriteFile
+from rqark_core.tools import ConvertDocument, EditFile, Exec, Grep, ListDir, PlanUpdate, ReadFile, SubAgent, WebFetch, WebSearch, WriteFile
 
 from rqark_app.prompts.memory import MemoryPrompt
 from rqark_app.prompts.state import StatePrompt
@@ -8,7 +8,7 @@ from rqark_app.types.agent import BaseAgent
 
 _prompts = [AgentsMdPrompt(), GitProjectPrompt(), PlatformPrompt(), DateTimePrompt()]
 
-_tools = [WebFetch(), WebSearch(), PlanUpdate(), Grep(), ListDir(), ReadFile(), WriteFile(), EditFile()]
+_tools = [WebFetch(), WebSearch(), PlanUpdate(), Grep(), ListDir(), ReadFile(), WriteFile(), EditFile(), ConvertDocument()]
 
 
 class AgentHoliday(BaseAgent):
