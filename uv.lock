@@ -1225,7 +1225,9 @@ name = "rqark-app"
 version = "0.11.8"
 source = { editable = "." }
 dependencies = [
+    { name = "certifi" },
     { name = "httpx" },
+    { name = "httpx2" },
     { name = "pyyaml" },
     { name = "rqark-core" },
 ]
@@ -1242,7 +1244,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "certifi", specifier = ">=2026.10.23" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "httpx2", specifier = ">=2.12.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "rqark-core", specifier = "==0.5.0", index = "https://gitea.carhyme.top/api/packages/RedQueenArk/pypi/simple" },
 ]
