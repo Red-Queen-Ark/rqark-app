@@ -26,7 +26,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.urls]
-Repository = "https://gitea.carhyme.top/RedQueenArk/rqark-app"
+Homepage = "https://github.com/Red-Queen-Ark/rqark-app"
+Repository = "https://github.com/Red-Queen-Ark/rqark-app"
+Issues = "https://github.com/Red-Queen-Ark/rqark-app/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rqark_app"]
