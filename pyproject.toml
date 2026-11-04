@@ -1,9 +1,18 @@
 [project]
 name = "rqark-app"
 version = "0.11.8"
-description = "Red Queen Ark App - session, agent and provider managers on top of rqark-core, with rqark-data-cloud integration"
+description = "Session, provider and agent management on top of rqark-core, with optional rqark-data-cloud integration"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.14"
+authors = [{ name = "RedQueenArk" }]
+keywords = ["agent", "llm", "openai", "session"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
 dependencies = [
     "certifi>=2026.10.23",
     "httpx>=0.28.1",
@@ -16,17 +25,11 @@ dependencies = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[project.urls]
+Repository = "https://gitea.carhyme.top/RedQueenArk/rqark-app"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/rqark_app"]
-
-[[tool.uv.index]]
-name = "gitea"
-url = "https://gitea.carhyme.top/api/packages/RedQueenArk/pypi/simple"
-publish-url = "https://gitea.carhyme.top/api/packages/RedQueenArk/pypi"
-explicit = true
-
-[tool.uv.sources]
-rqark-core = { index = "gitea" }
 
 [dependency-groups]
 dev = [
