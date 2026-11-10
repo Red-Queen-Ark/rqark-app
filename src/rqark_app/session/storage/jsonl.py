@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pathlib import Path
 
@@ -7,6 +8,13 @@ from .base import SessionStorage
 
 
 class JSONLStorage(SessionStorage):
+    """One JSONL file per session.
+
+    A session file grows with its history, so writing it is disk-to-syscall work
+    proportional to the transcript. It runs in a worker thread: the save happens
+    after every model call of a turn, while the TUI is drawing the answer.
+    """
+
     def __init__(self, path: str | Path):
         self.path = Path(path)
 
@@ -14,13 +22,22 @@ class JSONLStorage(SessionStorage):
         return self.path / f'{session_id}.jsonl'
 
     async def create(self, session: Session) -> None:
+        await asyncio.to_thread(self._create, session)
+
+    async def save(self, session: Session) -> None:
+        await asyncio.to_thread(self._write_file, session)
+
+    async def load(self) -> list[Session]:
+        return await asyncio.to_thread(self._load)
+
+    async def delete(self, session_id: str) -> bool:
+        return await asyncio.to_thread(self._delete, session_id)
+
+    def _create(self, session: Session) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
         self._write_file(session)
 
-    async def save(self, session: Session) -> None:
-        self._write_file(session)
-
-    async def load(self) -> list[Session]:
+    def _load(self) -> list[Session]:
         if not self.path.exists():
             return []
         sessions: list[Session] = []
@@ -33,7 +50,7 @@ class JSONLStorage(SessionStorage):
             sessions.append(session)
         return sessions
 
-    async def delete(self, session_id: str) -> bool:
+    def _delete(self, session_id: str) -> bool:
         file_path = self._file_path(session_id)
         if not file_path.exists():
             return False
