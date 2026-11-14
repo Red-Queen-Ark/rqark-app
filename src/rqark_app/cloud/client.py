@@ -87,9 +87,13 @@ class RQArkDataCloudClient:
     async def delete_provider(self, uuid: str) -> None:
         await self.request('DELETE', f'providers/{uuid}')
 
-    async def list_sessions(self, source: str | None = None, limit: int | None = None, offset: int | None = None) -> list[dict]:
-        params = {'source': source} if source is not None else None
-        return await self._list('sessions', limit, offset, params)
+    async def list_sessions(self, source: str | None = None, limit: int | None = None, offset: int | None = None, project_id: str | None = None) -> list[dict]:
+        params: dict[str, str] = {}
+        if source is not None:
+            params['source'] = source
+        if project_id is not None:
+            params['project_id'] = project_id
+        return await self._list('sessions', limit, offset, params or None)
 
     async def get_session(self, uuid: str) -> dict:
         return self._json(await self.request('GET', f'sessions/{uuid}')) or {}
@@ -105,6 +109,21 @@ class RQArkDataCloudClient:
 
     async def list_session_messages(self, uuid: str, limit: int | None = None, offset: int | None = None) -> list[dict]:
         return await self._list(f'sessions/{uuid}/messages', limit, offset)
+
+    async def list_projects(self, limit: int | None = None, offset: int | None = None) -> list[dict]:
+        return await self._list('projects', limit, offset)
+
+    async def get_project(self, uuid: str) -> dict:
+        return self._json(await self.request('GET', f'projects/{uuid}')) or {}
+
+    async def create_project(self, payload: dict) -> dict:
+        return self._json(await self.request('POST', 'projects', json=payload)) or {}
+
+    async def update_project(self, uuid: str, payload: dict) -> dict:
+        return self._json(await self.request('PUT', f'projects/{uuid}', json=payload)) or {}
+
+    async def delete_project(self, uuid: str) -> None:
+        await self.request('DELETE', f'projects/{uuid}')
 
     async def list_memory(self, agent_id: str | None = None, cursor: str | None = None, limit: int | None = None, kind: str | None = None) -> dict:
         params: dict[str, str] = {}

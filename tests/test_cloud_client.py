@@ -291,6 +291,103 @@ async def test_list_sessions_query_is_the_source_when_one_is_given(build_client)
     assert calls[0].url.params.get('source') == 'TUI'
 
 
+async def test_list_sessions_carries_the_project_filter_beside_the_source(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=[])
+
+    client = build_client(handler)
+    await client.list_sessions(source='AGENT_CLOUD', project_id='p1')
+
+    assert calls[0].url.params.get('source') == 'AGENT_CLOUD'
+    assert calls[0].url.params.get('project_id') == 'p1'
+
+
+async def test_list_sessions_sends_no_query_when_nothing_is_filtered(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=[])
+
+    client = build_client(handler)
+    await client.list_sessions()
+
+    assert not calls[0].url.params
+
+
+async def test_list_projects_reads_the_whole_array(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=[{'id': 'p1', 'project_name': 'acme', 'project_path': 'acme'}])
+
+    client = build_client(handler)
+    projects = await client.list_projects()
+
+    assert projects == [{'id': 'p1', 'project_name': 'acme', 'project_path': 'acme'}]
+    assert calls[0].url.path == '/api/projects'
+
+
+async def test_get_project_reads_one_project(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={'id': 'p1', 'project_name': 'acme', 'project_path': 'acme'})
+
+    client = build_client(handler)
+    project = await client.get_project('p1')
+
+    assert project['project_path'] == 'acme'
+    assert calls[0].url.path == '/api/projects/p1'
+
+
+async def test_create_project_posts_the_payload(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(201, json={})
+
+    client = build_client(handler)
+    await client.create_project({'project_name': 'acme', 'project_path': 'acme'})
+
+    assert json.loads(calls[0].content) == {'project_name': 'acme', 'project_path': 'acme'}
+
+
+async def test_update_project_puts_the_payload(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={})
+
+    client = build_client(handler)
+    await client.update_project('p1', {'project_name': 'acme-2'})
+
+    assert calls[0].method == 'PUT'
+    assert calls[0].url.path == '/api/projects/p1'
+    assert json.loads(calls[0].content) == {'project_name': 'acme-2'}
+
+
+async def test_delete_project_sends_delete(build_client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(204)
+
+    client = build_client(handler)
+    await client.delete_project('p1')
+
+    assert calls[0].method == 'DELETE'
+    assert calls[0].url.path == '/api/projects/p1'
+
+
 async def test_create_session_merges_the_source_into_the_payload(build_client):
     calls: list[httpx.Request] = []
 
