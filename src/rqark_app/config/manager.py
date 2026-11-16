@@ -56,6 +56,12 @@ TOOLS: dict[str, Callable[..., BaseTool]] = {
 PROVIDER_FIELDS = frozenset(Provider.__dataclass_fields__)
 
 
+def register_tool(name: str, cls: type[BaseTool]) -> None:
+    if name in TOOLS:
+        raise ValueError(f'tool {name!r} is already registered')
+    TOOLS[name] = cls
+
+
 def _agent_config_paths(path: Path) -> list[Path]:
     return sorted(p for p in path.iterdir() if p.is_file() and p.suffix in {'.yml', '.yaml'})
 

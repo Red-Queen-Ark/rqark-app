@@ -4,10 +4,11 @@ from pathlib import Path
 
 import httpx
 import pytest
+from rqark_core.types.tool import BaseTool
 
 from rqark_app.cloud.client import DataCloudError
 from rqark_app.config.default import AGENTS, CLOUD
-from rqark_app.config.manager import ConfigManager
+from rqark_app.config.manager import TOOLS, ConfigManager, register_tool
 from rqark_app.libs.io import IoHelper
 
 CLOUD_YML = """
@@ -67,6 +68,30 @@ def config_dir(tmp_path: Path) -> Path:
     return tmp_path
 
 
+class Translate(BaseTool):
+    @property
+    def name(self) -> str:
+        return 'translate'
+
+    def get_openai_schema(self) -> dict:
+        return {}
+
+    async def run(self, ctx=None, **kwargs) -> str:
+        return 'translated'
+
+
+TRANSLATE_YML = """
+name: Diana
+description: ''
+prompts:
+- name: RolePrompt
+  params:
+    agent_name: Diana
+tools:
+- name: Translate
+"""
+
+
 def load(tmp_path: Path) -> ConfigManager:
     config_mgr = ConfigManager(str(tmp_path))
     asyncio.run(config_mgr.load())
@@ -81,6 +106,23 @@ def test_a_tool_written_in_the_agent_file_reaches_the_agent(tmp_path: Path):
     assert [agent.name for agent in agents] == ['Diana']
     assert [tool.name for tool in agents[0].tools] == ['gitea', 'web_search']
     assert agents[0].tools[0].params() == {'token': 'secret-token', 'base_url': 'https://gitea.example', 'username': 'diana'}
+
+
+def test_a_registered_tool_can_be_built_into_an_agent(tmp_path: Path):
+    (config_dir(tmp_path) / 'agents' / 'Diana.yml').write_text(TRANSLATE_YML, encoding='utf-8')
+
+    register_tool('Translate', Translate)
+    try:
+        agents = load(tmp_path).agents
+    finally:
+        del TOOLS['Translate']
+
+    assert [type(tool).__name__ for tool in agents[0].tools] == ['Translate']
+
+
+def test_registering_a_registered_name_raises():
+    with pytest.raises(ValueError):
+        register_tool('Gitea', Translate)
 
 
 def test_an_empty_agents_directory_is_seeded_with_the_presets(tmp_path: Path):
