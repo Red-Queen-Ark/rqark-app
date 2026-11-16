@@ -37,6 +37,7 @@ class ScriptedCore:
     def __init__(self, agent_id: str = '', path: tuple[str, ...] = (), extras: dict | None = None):
         self.agent_id = agent_id
         self.path = path
+        self.extras = extras or {}
         self.chat_calls: list[tuple] = []
         ScriptedCore.instances.append(self)
 
@@ -146,7 +147,7 @@ async def test_context_overflow_retries_original_history_when_summary_unavailabl
     scripted_core.overflow_errors = 1
     app = AgentApp([make_provider('p1', 0)])
 
-    async def no_summary(_, __=None):
+    async def no_summary(_, __=None, ___=None):
         return None
 
     monkeypatch.setattr(app.compactor, 'get_summary', no_summary)

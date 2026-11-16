@@ -4,6 +4,11 @@ from rqark_core.types.provider import Provider
 
 from rqark_app.cloud.chat import CloudAgentCore, RefreshingAuth
 from rqark_app.cloud.client import RQArkDataCloudClient
+from rqark_app._app.helper import ChatHelper
+from rqark_app.provider.manager import ProviderManager
+from rqark_app.session.manager import SessionManager
+from rqark_app.session.storage import CloudStorage
+from rqark_app.tools.context import AGENT_KEY, COMPACT_KEY, SESSION_KEY, SOURCE_KEY
 from rqark_app.types.cloud import CloudConfig
 
 
@@ -91,3 +96,39 @@ def test_a_subagent_core_keeps_the_cloud_client():
     child = core._spawn('child', ('root',), 600, {})
     assert isinstance(child, CloudAgentCore)
     assert child.cloud_client is core.cloud_client
+
+
+def test_a_title_call_takes_its_source_from_cloud_storage():
+    helper = ChatHelper(ProviderManager([provider(PROVIDER_ID)]), SessionManager(CloudStorage(cloud_client(), source='AGENT_CLOUD')), emit=lambda *args, **kwargs: None)
+    assert helper._usage_tags(SESSION_UUID) == {'source': 'AGENT_CLOUD', 'session_id': SESSION_UUID}
+
+
+AGENT_UUID = '8e2f5d3b-2b2b-4b2b-9b2b-2b2b2b2b2b2b'
+SESSION_UUID = '0f1e2d3c-1a1a-4a1a-8a1a-1a1a1a1a1a1a'
+PROVIDER_ID = '11111111-1111-1111-1111-111111111111'
+
+
+async def test_a_turn_reports_its_source_and_ids_to_the_proxy():
+    core = CloudAgentCore(cloud_client(), extras={SOURCE_KEY: 'TUI', AGENT_KEY: AGENT_UUID, SESSION_KEY: SESSION_UUID})
+    params = await core._build_chat_params(provider(PROVIDER_ID), [], [])
+    assert params['extra_body'] == {'source': 'TUI', 'agent_id': AGENT_UUID, 'session_id': SESSION_UUID}
+
+
+async def test_a_core_without_tags_sends_no_extra_body():
+    core = CloudAgentCore(cloud_client())
+    params = await core._build_chat_params(provider(PROVIDER_ID), [], [])
+    assert 'extra_body' not in params
+
+
+async def test_tags_merge_into_an_extra_body_the_provider_needs():
+    core = CloudAgentCore(cloud_client(), extras={SOURCE_KEY: 'AGENT_CLOUD', SESSION_KEY: SESSION_UUID})
+    thinking = Provider('deepseek-v4-pro', 'http://upstream', 0, None, id=PROVIDER_ID, thinking='enabled')
+    params = await core._build_chat_params(thinking, [], [])
+    assert params['extra_body']['chat_template_kwargs'] == {'enable_thinking': True}
+    assert params['extra_body']['source'] == 'AGENT_CLOUD'
+
+
+async def test_a_compaction_call_is_tagged_as_one():
+    core = CloudAgentCore(cloud_client(), extras={SOURCE_KEY: 'TUI', COMPACT_KEY: True})
+    params = await core._build_chat_params(provider(PROVIDER_ID), [], [])
+    assert params['extra_body']['is_compaction'] is True
