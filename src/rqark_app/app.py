@@ -44,9 +44,9 @@ def _auto_write_default() -> bool:
 def _resolve_cloud_client(storage: SessionStorage | None, cloud_client: RQArkDataCloudClient | None | object) -> RQArkDataCloudClient | None:
     """The client a turn proxies through: given one when the caller decided, otherwise the storage's own.
 
-    Passing None explicitly is how a caller keeps the provider's own key: a task
-    run holds a run-scoped token, which the data cloud does not accept for model
-    calls, so it cannot use the proxy even though it stores in the cloud.
+    Passing None explicitly keeps the provider's own key, for a caller whose
+    token the data cloud will not accept for model calls. A task run passes its
+    own client instead: its run token is accepted by the chat proxy.
     """
     if isinstance(cloud_client, RQArkDataCloudClient):
         return cloud_client
