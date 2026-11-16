@@ -80,7 +80,10 @@ class AgentApp(AgentAppEventEmitter):
             await self.session_mgr.save(session.uuid)
 
     async def chat(self, content: str, agent: BaseAgent, session_id: str | None = None, path: tuple[str, ...] = (), images: list[str] | None = None, extras: dict[str, Any] | None = None) -> Session:
-        session = await self.session_mgr.get_or_create(session_id) if session_id else await self.session_mgr.create()
+        session = await self.session_mgr.get_or_create(session_id) if session_id else await self.session_mgr.create(agent_id=agent.id)
+        if agent.id and session.agent_id != agent.id:
+            session.agent_id = agent.id
+            await self.session_mgr.save(session.uuid)
         if extras is not None:
             # The memory writer runs its own core, without this agent's role prompt,
             # so the name the turn addresses the human by is carried over in extras.

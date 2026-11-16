@@ -42,3 +42,12 @@ async def test_jsonl_storage_delete_reports_whether_the_file_existed(tmp_path):
 async def test_jsonl_storage_load_skips_empty_files(tmp_path):
     (tmp_path / 'empty.jsonl').write_text('\n\n', encoding='utf-8')
     assert await JSONLStorage(tmp_path).load() == []
+
+
+async def test_jsonl_storage_round_trips_the_agent(tmp_path):
+    storage = JSONLStorage(tmp_path)
+    await storage.create(Session(agent_id='agent-1'))
+
+    loaded = await storage.load()
+
+    assert loaded[0].agent_id == 'agent-1'
