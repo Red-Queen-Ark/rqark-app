@@ -37,3 +37,20 @@ def test_switch_to_moves_off_the_default():
 
     assert mgr.switch_to(0) is True
     assert mgr.agent.name == 'a'
+
+
+def test_by_id_finds_the_agent_carrying_that_id():
+    first = build_agent('a')
+    first.id = 'agent-1'
+    second = build_agent('b')
+    second.id = 'agent-2'
+    mgr = AgentManager([first, second])
+
+    assert mgr.by_id('agent-2') is second
+
+
+def test_by_id_finds_nothing_without_an_id_or_on_a_miss():
+    mgr = AgentManager([build_agent('a')])
+
+    assert mgr.by_id('') is None
+    assert mgr.by_id('agent-9') is None

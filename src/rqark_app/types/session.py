@@ -28,6 +28,7 @@ class Session:
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     title: str = ''
+    agent_id: str = ''
     plan_items: list[PlanItem] = field(default_factory=list)
     history: list[HistoryMessage] = field(default_factory=list)
 
@@ -75,6 +76,7 @@ class Session:
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
             'title': self.title,
+            'agent_id': self.agent_id,
             'plan_items': [asdict(p) for p in self.plan_items],
             'history': [m.to_dict() for m in self.history],
         }
@@ -86,6 +88,7 @@ class Session:
             created_at=parse_dt(data['created_at']),
             updated_at=parse_dt(data['updated_at']),
             title=data.get('title', ''),
+            agent_id=data.get('agent_id') or '',
             plan_items=[PlanItem(**p) for p in data.get('plan_items', [])],
             history=[message_from_dict(m) for m in data.get('history', [])],
         )

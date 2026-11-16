@@ -205,3 +205,30 @@ async def test_a_list_source_restricts_the_listing():
 
     assert body(fake.calls[0])['source'] == 'AGENT_CLOUD'
     assert fake.calls[1].url.params.get('source') == 'AGENT_CLOUD'
+
+
+async def test_save_sends_the_agent_the_session_was_talked_to_with(cloud):
+    cloud.add('PUT', '/api/sessions/s1', httpx.Response(200, json={'id': 's1'}))
+    session = Session(uuid='s1', agent_id='agent-1')
+
+    await cloud.store.save(session)
+
+    assert body(cloud.calls[0])['agent_id'] == 'agent-1'
+
+
+async def test_save_leaves_the_agent_out_when_the_session_names_none(cloud):
+    cloud.add('PUT', '/api/sessions/s1', httpx.Response(200, json={'id': 's1'}))
+
+    await cloud.store.save(Session(uuid='s1'))
+
+    assert 'agent_id' not in body(cloud.calls[0])
+
+
+async def test_load_restores_the_agent(cloud):
+    metadata = {'id': 's1', 'title': '', 'agent_id': 'agent-1', 'plan_items': [], 'created_at': CREATED_AT, 'updated_at': CREATED_AT}
+    cloud.add('GET', '/api/sessions', httpx.Response(200, json=[metadata]))
+    cloud.add('GET', '/api/sessions/s1/messages', httpx.Response(200, json=[]))
+
+    sessions = await cloud.store.load()
+
+    assert sessions[0].agent_id == 'agent-1'

@@ -45,6 +45,8 @@ class CloudStorage(SessionStorage):
         payload = session.to_dict()
         payload.pop('created_at', None)
         payload.pop('updated_at', None)
+        if not payload.get('agent_id'):
+            payload.pop('agent_id', None)
         return payload
 
     def _metadata(self, session: Session) -> dict:
@@ -59,6 +61,7 @@ class CloudStorage(SessionStorage):
             created_at=parse_dt(info['created_at']),
             updated_at=parse_dt(info['updated_at']),
             title=info.get('title') or '',
+            agent_id=info.get('agent_id') or '',
             plan_items=[PlanItem(**item) for item in info.get('plan_items') or []],
             history=[message_from_dict(message['data']) for message in messages],
         )

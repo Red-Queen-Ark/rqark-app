@@ -9,8 +9,11 @@ class SessionManager:
         self.storage = storage
         self.sessions_map: dict[str, Session] = {}
 
-    async def create(self, session_id: str | None = None) -> Session:
-        session = Session() if session_id is None else Session(uuid=session_id)
+    async def create(self, session_id: str | None = None, agent_id: str = '') -> Session:
+        if session_id is None:
+            session = Session(agent_id=agent_id)
+        else:
+            session = Session(uuid=session_id, agent_id=agent_id)
         self.sessions_map[session.uuid] = session
         return session
 

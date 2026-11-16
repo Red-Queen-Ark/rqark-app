@@ -24,6 +24,11 @@ class AgentManager:
     def agent(self) -> BaseAgent:
         return self.agents[self.cur_index]
 
+    def by_id(self, agent_id: str) -> BaseAgent | None:
+        if not agent_id:
+            return None
+        return next((agent for agent in self.agents if agent.id == agent_id), None)
+
     def _switch_provider(self) -> None:
         self.cur_index += 1
         if self.cur_index >= len(self.agents):
