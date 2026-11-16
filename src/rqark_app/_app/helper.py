@@ -11,6 +11,7 @@ from rqark_app.cloud.client import RQArkDataCloudClient
 from rqark_app.prompts.title import GentTilte
 from rqark_app.provider.manager import ProviderManager
 from rqark_app.session.manager import SessionManager
+from rqark_app.tools.context import SESSION_KEY, SOURCE_KEY
 from rqark_app.types.event import ProviderSwitch
 from rqark_app.types.session import Session
 
@@ -28,11 +29,18 @@ class ChatHelper:
             await self._emit('provider_switched', AgentPayload(core.agent_id, core.path, ProviderSwitch(old=provider, new=self.provider_mgr.provider)))
         await asyncio.sleep(1)
 
+    def _usage_tags(self, session_id: str) -> dict[str, str]:
+        tags = {SESSION_KEY: session_id}
+        source = getattr(self.session_mgr.storage, 'source', '')
+        if source:
+            tags[SOURCE_KEY] = str(source)
+        return tags
+
     async def gen_title(self, session_id: str, content: str) -> Session | None:
         session = await self.session_mgr.get(session_id)
         if session is None:
             return None
-        core = create_core('GenTitle', self.cloud_client)
+        core = create_core('GenTitle', self.cloud_client, extras=self._usage_tags(session_id))
         provider = self.provider_mgr.provider
         for _ in range(3):
             new_messages, error = await core.chat(provider, [UserMessage(content)], [GentTilte()], [])

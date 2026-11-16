@@ -20,7 +20,7 @@ from rqark_app.prompts.memory import PROMPT_KEY
 from rqark_app.provider.manager import ProviderManager
 from rqark_app.session.manager import SessionManager
 from rqark_app.session.storage import CloudStorage, SessionStorage
-from rqark_app.tools.context import AGENT_KEY, CLIENT_KEY
+from rqark_app.tools.context import AGENT_KEY, CLIENT_KEY, COMPACT_KEY, SESSION_KEY
 from rqark_app.types.agent import BaseAgent
 from rqark_app.types.session import Session
 
@@ -85,6 +85,7 @@ class AgentApp(AgentAppEventEmitter):
             # The memory writer runs its own core, without this agent's role prompt,
             # so the name the turn addresses the human by is carried over in extras.
             extras[USER_NAME_KEY] = user_name_from_prompts(agent.prompts)
+            extras[SESSION_KEY] = session.uuid
         core = create_core(f'{agent.name}:{session.uuid}', self.cloud_client, path=path, extras=extras)
         # A core is created per turn, so the plan stored on the session must be seeded back
         # or plan_update would render "No active plan" for every turn of an ongoing plan.
@@ -199,7 +200,7 @@ class AgentApp(AgentAppEventEmitter):
             if error is None:
                 return session
             if is_context_overflow(error):
-                summary = await self.compactor.get_summary(session.get_last_chunk_for_chat(), self.cloud_client)
+                summary = await self.compactor.get_summary(session.get_last_chunk_for_chat(), self.cloud_client, {**core.extras, SESSION_KEY: session.uuid, COMPACT_KEY: True})
                 if summary:
                     session.history += [summary]
                     await self.session_mgr.save(session.uuid)

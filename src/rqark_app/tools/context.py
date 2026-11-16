@@ -8,6 +8,8 @@ from rqark_app.cloud.client import RQArkDataCloudClient
 CLIENT_KEY = 'data_cloud'
 AGENT_KEY = 'agent_id'
 SOURCE_KEY = 'source'
+SESSION_KEY = 'session_id'
+COMPACT_KEY = 'is_compaction'
 
 
 def context_parts(ctx: ToolContext | None) -> tuple[RQArkDataCloudClient, str, str]:

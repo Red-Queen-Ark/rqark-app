@@ -9,6 +9,7 @@ from rqark_app._app.core import create_core
 from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
 from rqark_app.prompts.memory_writer import DEFAULT_USER_NAME, MemoryWritePrompt
 from rqark_app.provider.manager import ProviderManager
+from rqark_app.tools.context import AGENT_KEY, SESSION_KEY, SOURCE_KEY
 from rqark_app.types.session import Session
 
 logger = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ class TurnMemoryWriter:
         if should_skip(user_text, assistant_text, tool_calls):
             return
 
-        answer = await self._ask(user_text, assistant_text, tool_calls, session_id, current_state, user_name)
+        answer = await self._ask(user_text, assistant_text, tool_calls, session_id, current_state, user_name, agent_id, source)
         if not answer:
             return
         if answer.get('skip') is True:
@@ -68,10 +69,10 @@ class TurnMemoryWriter:
             await self._write_rows(agent_id, source, session_id, answer.get('events'), kind='event')
             await self._write_rows(agent_id, source, session_id, answer.get('facts'), kind='fact')
 
-    async def _ask(self, user_text: str, assistant_text: str, tool_calls: list[str], session_id: str, current_state: dict | None, user_name: str) -> dict:
+    async def _ask(self, user_text: str, assistant_text: str, tool_calls: list[str], session_id: str, current_state: dict | None, user_name: str, agent_id: str, source: str) -> dict:
         """One model call: the state as it stands plus the turn, into JSON."""
         request = {'current_state': (current_state or {}).get('content') or '', 'user_message': user_text, 'assistant_reply': assistant_text, 'tool_calls': tool_calls}
-        core = create_core('Memory', self.cloud_client)
+        core = create_core('Memory', self.cloud_client, extras={AGENT_KEY: agent_id, SOURCE_KEY: source, SESSION_KEY: session_id})
         messages, error = await core.chat(self.provider_mgr.provider, [UserMessage(json.dumps(request, ensure_ascii=False))], [MemoryWritePrompt(user_name)], [])
         if error is not None:
             logger.warning('memory writer model call failed session=%s error=%s', session_id, error)

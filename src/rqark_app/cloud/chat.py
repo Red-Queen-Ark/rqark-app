@@ -1,13 +1,17 @@
 import ssl
+from collections.abc import Sequence
 from typing import Any
 
 import certifi
 import httpx2
 from openai import AsyncOpenAI
 from rqark_core.core import AgentCore
+from rqark_core.types.chat import Message
 from rqark_core.types.provider import Provider
+from rqark_core.types.tool import BaseTool
 
 from rqark_app.cloud.client import RQArkDataCloudClient
+from rqark_app.tools.context import AGENT_KEY, COMPACT_KEY, SESSION_KEY, SOURCE_KEY
 
 
 class RefreshingAuth(httpx2.Auth):
@@ -40,9 +44,39 @@ class CloudAgentCore(AgentCore):
     provider as a base URL rather than as a field in the body.
     """
 
-    def __init__(self, client: RQArkDataCloudClient, agent_id: str = '', path: tuple[str, ...] = (), timeout: float = 300, tool_timeout: float = 120, extras: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        client: RQArkDataCloudClient,
+        agent_id: str = '',
+        path: tuple[str, ...] = (),
+        timeout: float = 300,
+        tool_timeout: float = 120,
+        extras: dict[str, Any] | None = None,
+    ):
         super().__init__(agent_id, path=path, timeout=timeout, tool_timeout=tool_timeout, extras=extras)
         self.cloud_client = client
+
+    def _usage_tags(self) -> dict[str, Any]:
+        tags: dict[str, Any] = {}
+        source = self.extras.get(SOURCE_KEY)
+        if source:
+            tags['source'] = str(source)
+        agent_id = self.extras.get(AGENT_KEY)
+        if agent_id:
+            tags['agent_id'] = str(agent_id)
+        session_id = self.extras.get(SESSION_KEY)
+        if session_id:
+            tags['session_id'] = str(session_id)
+        if self.extras.get(COMPACT_KEY):
+            tags['is_compaction'] = True
+        return tags
+
+    async def _build_chat_params(self, provider: Provider, history: list[Message], tools: Sequence[BaseTool]) -> dict[str, Any]:
+        params = await super()._build_chat_params(provider, history, tools)
+        tags = self._usage_tags()
+        if tags:
+            params['extra_body'] = {**(params.get('extra_body') or {}), **tags}
+        return params
 
     def _get_client(self, provider: Provider) -> AsyncOpenAI:
         if not provider.id:

@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from typing import Any
 
 from rqark_app._app.core import create_core
 from rqark_app.cloud.client import RQArkDataCloudClient
@@ -12,11 +13,11 @@ class Compactor:
     def __init__(self, provider_mgr: ProviderManager):
         self.provider_mgr = provider_mgr
 
-    async def get_summary(self, messages: Sequence[HistoryMessage], cloud_client: RQArkDataCloudClient | None = None) -> SummaryMessage | None:
+    async def get_summary(self, messages: Sequence[HistoryMessage], cloud_client: RQArkDataCloudClient | None = None, extras: dict[str, Any] | None = None) -> SummaryMessage | None:
         trimmed = compact_messages(messages)
         if not trimmed:
             return None
-        core = create_core('Compact', cloud_client)
+        core = create_core('Compact', cloud_client, extras=extras)
         provider = self.provider_mgr.provider
         while trimmed:
             new_messages, error = await core.chat(provider, trimmed, [CompactContext()], [])
