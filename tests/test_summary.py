@@ -18,7 +18,7 @@ class FakeCompactCore:
         self.chat_calls: list[list] = []
         FakeCompactCore.instances.append(self)
 
-    async def chat(self, provider, messages, prompts, tools):
+    async def chat(self, provider, messages, prompts, tools, partial=None):
         self.chat_calls.append(list(messages))
         if len(messages) > FakeCompactCore.max_messages:
             request = httpx.Request('POST', 'http://test')

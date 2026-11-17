@@ -55,8 +55,9 @@ class FakeCore:
     def on_plan(self):
         return lambda f: f
 
-    async def chat(self, provider, messages, prompts, tools):
+    async def chat(self, provider, messages, prompts, tools, partial=None):
         self.chat_calls.append((provider, messages, prompts, tools))
+        self.partial = partial
         if FakeCore.terminal_error is not None:
             err, FakeCore.terminal_error = FakeCore.terminal_error, None
             return [*messages, AssistantMessage('partial')], err
@@ -403,3 +404,10 @@ async def test_chat_saves_snapshot_on_terminal_error(fake_core, tmp_path):
     reloaded = SessionManager(storage)
     await reloaded.load()
     assert [m.content for m in reloaded.sessions_map['abc'].history] == ['hi', 'partial']
+
+
+async def test_chat_hands_the_partial_sink_to_the_core(fake_core):
+    app = make_app(Provider('m', 'http://x', 0, 'k', name='p1'))
+    partial: list = []
+    await app.chat('hi', TestAgent(), partial=partial)
+    assert fake_core.instances[0].partial is partial

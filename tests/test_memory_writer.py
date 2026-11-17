@@ -52,7 +52,7 @@ def model(monkeypatch):
         def __init__(self, agent_id: str = '', path=(), extras=None):
             self.agent_id = agent_id
 
-        async def chat(self, provider, messages, prompts, tools):
+        async def chat(self, provider, messages, prompts, tools, partial=None):
             FakeCore.calls.append((provider, messages, prompts, tools))
             if FakeCore.error is not None:
                 return [*messages], FakeCore.error
