@@ -60,7 +60,7 @@ def model(monkeypatch):
         def __init__(self, agent_id: str = '', path=(), extras=None):
             pass
 
-        async def chat(self, provider, messages, prompts, tools):
+        async def chat(self, provider, messages, prompts, tools, partial=None):
             FakeCore.calls += 1
             FakeCore.seen_prompts.append(prompts)
             return [*messages, AssistantMessage(FakeCore.answer)], None

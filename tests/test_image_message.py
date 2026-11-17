@@ -39,7 +39,7 @@ class FakeCore:
     def on_plan(self):
         return lambda f: f
 
-    async def chat(self, provider, messages, prompts, tools):
+    async def chat(self, provider, messages, prompts, tools, partial=None):
         self.chat_calls.append((provider, messages, prompts, tools))
         if FakeCore.errors > 0:
             FakeCore.errors -= 1

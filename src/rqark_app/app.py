@@ -79,7 +79,7 @@ class AgentApp(AgentAppEventEmitter):
         if session is not None:
             await self.session_mgr.save(session.uuid)
 
-    async def chat(self, content: str, agent: BaseAgent, session_id: str | None = None, path: tuple[str, ...] = (), images: list[str] | None = None, extras: dict[str, Any] | None = None) -> Session:
+    async def chat(self, content: str, agent: BaseAgent, session_id: str | None = None, path: tuple[str, ...] = (), images: list[str] | None = None, extras: dict[str, Any] | None = None, partial: list[Message] | None = None) -> Session:
         session = await self.session_mgr.get_or_create(session_id) if session_id else await self.session_mgr.create(agent_id=agent.id)
         if agent.id and session.agent_id != agent.id:
             session.agent_id = agent.id
@@ -97,7 +97,10 @@ class AgentApp(AgentAppEventEmitter):
         await self._emit('message', AgentPayload(core.agent_id, core.path, user_msg))
         self._connect_event(core)
         history = [*session.get_last_chunk_for_chat(), user_msg]
-        return await self._loop(session, core, agent, history)
+        # `partial` collects this turn's history if the caller cancels it: the turn
+        # only lives in `_loop` and inside the core, so a stop would otherwise lose
+        # everything it had already done.
+        return await self._loop(session, core, agent, history, partial)
 
     async def write_turn_memory(self, *, session_id: str, source: str, session: Session, extras: dict[str, Any] | None = None, allow_state_update: bool = True) -> None:
         """Record one finished turn in the background: one event, the new state.
@@ -193,10 +196,10 @@ class AgentApp(AgentAppEventEmitter):
         except TimeoutError:
             logger.warning('gave up waiting for memory writes after %.1fs', timeout)
 
-    async def _loop(self, session: Session, core: AgentCore, agent: BaseAgent, history: list[Message]) -> Session:
+    async def _loop(self, session: Session, core: AgentCore, agent: BaseAgent, history: list[Message], partial: list[Message] | None = None) -> Session:
         while True:
             provider = self.provider_mgr.provider
-            new_messages, error = await core.chat(provider, history, agent.prompts, agent.tools)
+            new_messages, error = await core.chat(provider, history, agent.prompts, agent.tools, partial)
             history = list(new_messages)
             session.update_history_to_last_chunk(history)
             await self.session_mgr.save(session.uuid)

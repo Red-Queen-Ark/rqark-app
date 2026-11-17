@@ -50,7 +50,7 @@ class ScriptedCore:
     def on_plan(self):
         return lambda f: f
 
-    async def chat(self, provider, messages, prompts, tools):
+    async def chat(self, provider, messages, prompts, tools, partial=None):
         self.chat_calls.append((provider, list(messages), prompts, tools))
         if self.agent_id.startswith('Compact'):
             return [*messages, AssistantMessage(ScriptedCore.summary)], None

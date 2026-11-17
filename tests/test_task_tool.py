@@ -176,7 +176,7 @@ async def test_a_subagent_child_core_carries_the_task_origin_refusal(monkeypatch
             seen.append(kwargs.get('extras'))
             super().__init__(**kwargs)
 
-        async def chat(self, provider: Any, messages: Any, prompts: Any = (), tools: Any = ()) -> tuple[list[AssistantMessage], None]:
+        async def chat(self, provider: Any, messages: Any, prompts: Any = (), tools: Any = (), partial: Any = None) -> tuple[list[AssistantMessage], None]:
             result = await Task().run(ctx=ToolContext(extras=seen[-1]), action='create', name='x', prompt='p', agent_name='a', provider_name='b', schedule_kind='cron', cron_expr='0 9 * * *')
             return [AssistantMessage(result)], None
 
