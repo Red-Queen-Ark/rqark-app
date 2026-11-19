@@ -287,3 +287,38 @@ async def test_load_keeps_each_answer_with_its_session():
         await client.aclose()
 
     assert [session.history[0].content for session in sessions] == ['hi 0', 'hi 1', 'hi 2']
+
+
+async def test_load_can_be_limited_to_the_ids_it_is_given():
+    fake = FakeCloud()
+    infos = [{'id': f's{index}', 'title': '', 'plan_items': [], 'created_at': CREATED_AT, 'updated_at': CREATED_AT} for index in range(3)]
+    fake.add('GET', '/api/sessions', httpx.Response(200, json=infos))
+    fake.add('GET', '/api/sessions/s1/messages', httpx.Response(200, json=[]))
+    client = RQArkDataCloudClient(CloudConfig(True, 'https://cloud.test', 'secret'), transport=httpx.MockTransport(fake.handler))
+
+    try:
+        sessions = await CloudStorage(client).load(['s1'])
+    finally:
+        await client.aclose()
+
+    assert [session.uuid for session in sessions] == ['s1']
+    assert paths(fake) == [('GET', '/api/sessions'), ('GET', '/api/sessions/s1/messages')]
+
+
+async def test_load_with_no_ids_asks_the_cloud_nothing(cloud):
+    assert await cloud.store.load([]) == []
+    assert paths(cloud) == []
+
+
+async def test_an_unknown_id_is_simply_absent():
+    fake = FakeCloud()
+    fake.add('GET', '/api/sessions', httpx.Response(200, json=[]))
+    client = RQArkDataCloudClient(CloudConfig(True, 'https://cloud.test', 'secret'), transport=httpx.MockTransport(fake.handler))
+
+    try:
+        sessions = await CloudStorage(client).load(['gone'])
+    finally:
+        await client.aclose()
+
+    assert sessions == []
+    assert paths(fake) == [('GET', '/api/sessions')]
