@@ -454,3 +454,33 @@ async def test_the_cloud_lists_are_read_at_the_same_time(tmp_path: Path):
         assert [provider.name for provider in config_mgr.providers] == ['cloud-p']
     finally:
         await config_mgr.aclose()
+
+
+async def test_prepare_makes_the_client_without_a_round_trip(tmp_path: Path):
+    (config_dir(tmp_path) / 'cloud.yml').write_text(CLOUD_YML, encoding='utf-8')
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        return httpx.Response(200, json=[])
+
+    config_mgr = ConfigManager(str(tmp_path), cloud_transport=httpx.MockTransport(handler), source='TUI')
+    config_mgr.prepare()
+
+    assert config_mgr.cloud_client is not None
+    assert calls == []
+    assert config_mgr.agents == []
+    await config_mgr.aclose()
+
+
+async def test_load_catalog_reads_the_lists_prepare_left_alone(tmp_path: Path):
+    (config_dir(tmp_path) / 'cloud.yml').write_text(CLOUD_YML, encoding='utf-8')
+
+    config_mgr = ConfigManager(str(tmp_path), cloud_transport=cloud_transport(), source='TUI')
+    config_mgr.prepare()
+    await config_mgr.load_catalog()
+    try:
+        assert [agent.name for agent in config_mgr.agents] == ['CloudDiana']
+        assert [provider.name for provider in config_mgr.providers] == ['cloud-p']
+    finally:
+        await config_mgr.aclose()

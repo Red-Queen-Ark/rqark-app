@@ -112,8 +112,21 @@ class ConfigManager:
         self.sop_manager = SopManager(self.config_path)
 
     async def load(self):
+        self.prepare()
+        await self.load_catalog()
+
+    def prepare(self):
+        """Read the local config files and build the cloud client.
+
+        This is the part of :meth:`load` that costs no round trip. A caller that
+        wants to start other cloud reads first (a session listing, say) can call it,
+        get the client, and only then await :meth:`load_catalog`.
+        """
         self.config_path.mkdir(parents=True, exist_ok=True)
         self._load_cloud()
+
+    async def load_catalog(self):
+        """Read the agents, the providers and this source's default agent."""
         default_info, _, _ = await asyncio.gather(self._default_agent_info(), self._load_agents(), self._load_providers())
         self._apply_default_agent(default_info)
 

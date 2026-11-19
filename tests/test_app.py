@@ -411,3 +411,12 @@ async def test_chat_hands_the_partial_sink_to_the_core(fake_core):
     partial: list = []
     await app.chat('hi', TestAgent(), partial=partial)
     assert fake_core.instances[0].partial is partial
+
+
+async def test_a_given_session_manager_is_used_instead_of_building_one():
+    manager = SessionManager()
+    manager.sessions_map['s1'] = Session(uuid='s1')
+    app = AgentApp([], session_mgr=manager)
+
+    assert app.session_mgr is manager
+    assert (await app.session_mgr.get('s1')) is not None
