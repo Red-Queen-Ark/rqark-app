@@ -57,11 +57,17 @@ def _resolve_cloud_client(storage: SessionStorage | None, cloud_client: RQArkDat
 
 
 class AgentApp(AgentAppEventEmitter):
-    def __init__(self, providers: list[Provider], storage: SessionStorage | None = None, cloud_client: RQArkDataCloudClient | None | object = _DERIVE_CLOUD_CLIENT):
+    def __init__(self, providers: list[Provider], storage: SessionStorage | None = None, cloud_client: RQArkDataCloudClient | None | object = _DERIVE_CLOUD_CLIENT, session_mgr: SessionManager | None = None):
+        """Build the app.
+
+        ``session_mgr`` lets a caller hand over a manager that is already loading
+        its sessions: the read is a cloud round trip, and starting it before the
+        provider list arrives keeps the two from queueing behind each other.
+        """
         super().__init__()
         self.cloud_client: RQArkDataCloudClient | None = _resolve_cloud_client(storage, cloud_client)
         self.provider_mgr = ProviderManager(providers)
-        self.session_mgr = SessionManager(storage)
+        self.session_mgr = session_mgr if session_mgr is not None else SessionManager(storage)
         self.chat_helper = ChatHelper(self.provider_mgr, self.session_mgr, self._emit, self.cloud_client)
         self.compactor = Compactor(self.provider_mgr)
         self.auto_write_memory = _auto_write_default()
