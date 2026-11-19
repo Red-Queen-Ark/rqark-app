@@ -411,3 +411,46 @@ async def test_a_default_needs_a_configured_cloud(tmp_path: Path):
     with pytest.raises(DataCloudError) as info:
         await config_mgr.set_default_agent(config_mgr.agents[0])
     assert info.value.code == 'NOT_CONFIGURED'
+
+
+class InFlightTransport(httpx.AsyncBaseTransport):
+    """Records the peak number of requests the client had open at once."""
+
+    def __init__(self, handler, delay: float = 0.01) -> None:
+        self._handler = handler
+        self._delay = delay
+        self.in_flight = 0
+        self.peak = 0
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        self.in_flight += 1
+        self.peak = max(self.peak, self.in_flight)
+        try:
+            await asyncio.sleep(self._delay)
+            return self._handler(request)
+        finally:
+            self.in_flight -= 1
+
+
+async def test_the_cloud_lists_are_read_at_the_same_time(tmp_path: Path):
+    (config_dir(tmp_path) / 'cloud.yml').write_text(CLOUD_YML, encoding='utf-8')
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == '/api/agents':
+            return httpx.Response(200, json=[CLOUD_AGENT])
+        if request.url.path == '/api/providers':
+            return httpx.Response(200, json=[CLOUD_PROVIDER])
+        if request.url.path == '/api/agent-defaults/TUI':
+            return httpx.Response(200, json={'agent_id': CLOUD_AGENT['id']})
+        return httpx.Response(404, json={'error': {'code': 'NOT_FOUND', 'message': request.url.path}})
+
+    transport = InFlightTransport(handler)
+    config_mgr = ConfigManager(str(tmp_path), cloud_transport=transport, source='TUI')
+    await config_mgr.load()
+    try:
+        assert transport.peak > 1
+        assert config_mgr.default_agent is not None
+        assert config_mgr.default_agent.name == 'CloudDiana'
+        assert [provider.name for provider in config_mgr.providers] == ['cloud-p']
+    finally:
+        await config_mgr.aclose()
