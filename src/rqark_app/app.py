@@ -3,7 +3,6 @@ import logging
 import os
 from typing import Any
 
-from openai import APIError
 from rqark_core.core import AgentCore
 from rqark_core.types.chat import Message, UserMessage
 from rqark_core.types.event import AgentPayload
@@ -212,6 +211,8 @@ class AgentApp(AgentAppEventEmitter):
                     await self.session_mgr.save(session.uuid)
                     history = session.get_last_chunk_for_chat()
                     continue
+            from openai import APIError
+
             if not isinstance(error, APIError):
                 raise error
             await self.chat_helper.report_failure(core, provider)

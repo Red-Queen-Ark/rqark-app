@@ -1,14 +1,16 @@
 import ssl
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import certifi
 import httpx2
-from openai import AsyncOpenAI
 from rqark_core.core import AgentCore
 from rqark_core.types.chat import Message
 from rqark_core.types.provider import Provider
 from rqark_core.types.tool import BaseTool
+
+if TYPE_CHECKING:
+    pass
 
 from rqark_app.cloud.client import RQArkDataCloudClient
 from rqark_app.tools.context import AGENT_KEY, COMPACT_KEY, SESSION_KEY, SOURCE_KEY
@@ -44,15 +46,7 @@ class CloudAgentCore(AgentCore):
     provider as a base URL rather than as a field in the body.
     """
 
-    def __init__(
-        self,
-        client: RQArkDataCloudClient,
-        agent_id: str = '',
-        path: tuple[str, ...] = (),
-        timeout: float = 300,
-        tool_timeout: float = 120,
-        extras: dict[str, Any] | None = None,
-    ):
+    def __init__(self, client: RQArkDataCloudClient, agent_id: str = '', path: tuple[str, ...] = (), timeout: float = 300, tool_timeout: float = 120, extras: dict[str, Any] | None = None):
         super().__init__(agent_id, path=path, timeout=timeout, tool_timeout=tool_timeout, extras=extras)
         self.cloud_client = client
 
@@ -78,7 +72,9 @@ class CloudAgentCore(AgentCore):
             params['extra_body'] = {**(params.get('extra_body') or {}), **tags}
         return params
 
-    def _get_client(self, provider: Provider) -> AsyncOpenAI:
+    def _get_client(self, provider: Provider):
+        from openai import AsyncOpenAI
+
         if not provider.id:
             raise ValueError('cloud mode needs a provider id: this provider did not come from the data cloud')
         ssl_context = ssl.create_default_context(cafile=certifi.where())
