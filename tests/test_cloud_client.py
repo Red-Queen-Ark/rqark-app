@@ -593,3 +593,20 @@ async def test_sop_calls_hit_the_sop_endpoints(build_client):
 
     assert [(call.method, call.url.path) for call in calls] == [('GET', '/api/sops/trip-itinerary'), ('POST', '/api/sops'), ('PATCH', '/api/sops/trip-itinerary'), ('DELETE', '/api/sops/trip-itinerary')]
     assert json.loads(calls[2].content) == {'content': '# Trip'}
+
+
+async def test_set_user_config_puts_the_value_under_its_key(build_client):
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={'key': 'tui.theme', 'value': 'matrix'})
+
+    client = build_client(handler)
+
+    stored = await client.set_user_config('tui.theme', 'matrix')
+
+    assert stored['value'] == 'matrix'
+    assert seen[0].method == 'PUT'
+    assert seen[0].url.path == '/api/user-config/tui.theme'
+    assert json.loads(seen[0].content) == {'value': 'matrix'}

@@ -258,6 +258,10 @@ class RQArkDataCloudClient:
         """Every setting the account stored, as {key, value} rows."""
         return self._json(await self.request('GET', 'user-config')) or []
 
+    async def set_user_config(self, key: str, value: object) -> dict:
+        """Create or overwrite one of the account's settings."""
+        return self._json(await self.request('PUT', f'user-config/{key}', json={'value': value})) or {}
+
     async def get_agent_default(self, source: str) -> dict | None:
         try:
             return self._json(await self.request('GET', f'agent-defaults/{source}')) or {}
