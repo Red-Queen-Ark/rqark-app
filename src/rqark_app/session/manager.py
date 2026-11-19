@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from rqark_core.types.tool import PlanItem
 
 from rqark_app.session.storage import SessionStorage
@@ -47,9 +49,9 @@ class SessionManager:
         await self.save(session_id)
         return session
 
-    async def load(self):
+    async def load(self, ids: Sequence[str] | None = None):
         if self.storage:
-            sessions = await self.storage.load()
+            sessions = await self.storage.load(ids)
             self.sessions_map = {s.uuid: s for s in sessions}
 
     async def save(self, session_id: str):

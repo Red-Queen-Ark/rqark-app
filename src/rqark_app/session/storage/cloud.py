@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Sequence
 
 from rqark_core.types.tool import PlanItem
 
@@ -31,8 +32,13 @@ class CloudStorage(SessionStorage):
         await self.client.create_session(self._metadata(session), source=self._source())
         await self.client.update_session(session.uuid, payload, source=self._source())
 
-    async def load(self) -> list[Session]:
+    async def load(self, ids: Sequence[str] | None = None) -> list[Session]:
+        wanted = None if ids is None else set(ids)
+        if wanted is not None and not wanted:
+            return []
         infos = await self.client.list_sessions(source=self.list_source)
+        if wanted is not None:
+            infos = [info for info in infos if info.get('id') in wanted]
         if not infos:
             return []
         gate = asyncio.Semaphore(LOAD_CONCURRENCY)

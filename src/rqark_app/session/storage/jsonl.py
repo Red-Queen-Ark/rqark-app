@@ -1,5 +1,6 @@
 import asyncio
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
 from rqark_app.types.session import Session, message_from_dict
@@ -27,8 +28,8 @@ class JSONLStorage(SessionStorage):
     async def save(self, session: Session) -> None:
         await asyncio.to_thread(self._write_file, session)
 
-    async def load(self) -> list[Session]:
-        return await asyncio.to_thread(self._load)
+    async def load(self, ids: Sequence[str] | None = None) -> list[Session]:
+        return await asyncio.to_thread(self._load, ids)
 
     async def delete(self, session_id: str) -> bool:
         return await asyncio.to_thread(self._delete, session_id)
@@ -37,11 +38,14 @@ class JSONLStorage(SessionStorage):
         self.path.mkdir(parents=True, exist_ok=True)
         self._write_file(session)
 
-    def _load(self) -> list[Session]:
+    def _load(self, ids: Sequence[str] | None = None) -> list[Session]:
         if not self.path.exists():
             return []
+        files = self.path.glob('*.jsonl') if ids is None else [self._file_path(session_id) for session_id in ids]
         sessions: list[Session] = []
-        for file_path in self.path.glob('*.jsonl'):
+        for file_path in files:
+            if not file_path.exists():
+                continue
             lines = [line.strip() for line in file_path.read_text(encoding='utf-8').splitlines() if line.strip()]
             if not lines:
                 continue
