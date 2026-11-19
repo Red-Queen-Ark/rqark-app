@@ -1,7 +1,5 @@
 import re
 
-from openai import BadRequestError
-
 _CONTEXT_OVERFLOW_PATTERNS = (
     re.compile(r'prompt is too long', re.IGNORECASE),
     re.compile(r'request_too_large', re.IGNORECASE),
@@ -41,6 +39,8 @@ _CONTEXT_OVERFLOW_EXCLUSIONS = (
 
 
 def is_context_overflow(error: Exception) -> bool:
+    from openai import BadRequestError
+
     if not isinstance(error, BadRequestError):
         return False
     body = error.body
