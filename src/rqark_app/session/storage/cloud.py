@@ -1,9 +1,14 @@
+import asyncio
+
 from rqark_core.types.tool import PlanItem
 
 from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
 from rqark_app.types.session import Session, message_from_dict, parse_dt
 
 from .base import SessionStorage
+
+#: Sessions whose messages are fetched at the same time on :meth:`CloudStorage.load`.
+LOAD_CONCURRENCY = 8
 
 
 class CloudStorage(SessionStorage):
@@ -27,7 +32,16 @@ class CloudStorage(SessionStorage):
         await self.client.update_session(session.uuid, payload, source=self._source())
 
     async def load(self) -> list[Session]:
-        return [await self._restore(info) for info in await self.client.list_sessions(source=self.list_source)]
+        infos = await self.client.list_sessions(source=self.list_source)
+        if not infos:
+            return []
+        gate = asyncio.Semaphore(LOAD_CONCURRENCY)
+
+        async def restore(info: dict) -> Session:
+            async with gate:
+                return await self._restore(info)
+
+        return list(await asyncio.gather(*(restore(info) for info in infos)))
 
     async def delete(self, session_id: str) -> bool:
         try:

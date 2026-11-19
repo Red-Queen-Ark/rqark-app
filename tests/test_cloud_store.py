@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 import httpx
@@ -232,3 +233,57 @@ async def test_load_restores_the_agent(cloud):
     sessions = await cloud.store.load()
 
     assert sessions[0].agent_id == 'agent-1'
+
+
+class CountingTransport(httpx.AsyncBaseTransport):
+    """Records how many requests the client has in flight at the same time."""
+
+    def __init__(self, handler, delay: float = 0.01) -> None:
+        self._handler = handler
+        self._delay = delay
+        self.in_flight = 0
+        self.peak = 0
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        self.in_flight += 1
+        self.peak = max(self.peak, self.in_flight)
+        try:
+            await asyncio.sleep(self._delay)
+            return self._handler(request)
+        finally:
+            self.in_flight -= 1
+
+
+async def test_load_fetches_session_messages_at_the_same_time():
+    fake = FakeCloud()
+    infos = [{'id': f's{index}', 'title': '', 'plan_items': [], 'created_at': CREATED_AT, 'updated_at': CREATED_AT} for index in range(4)]
+    fake.add('GET', '/api/sessions', httpx.Response(200, json=infos))
+    for info in infos:
+        fake.add('GET', f'/api/sessions/{info["id"]}/messages', httpx.Response(200, json=[]))
+    transport = CountingTransport(fake.handler)
+    client = RQArkDataCloudClient(CloudConfig(True, 'https://cloud.test', 'secret'), transport=transport)
+
+    try:
+        sessions = await CloudStorage(client).load()
+    finally:
+        await client.aclose()
+
+    assert [session.uuid for session in sessions] == [info['id'] for info in infos]
+    assert transport.peak > 1
+
+
+async def test_load_keeps_each_answer_with_its_session():
+    fake = FakeCloud()
+    infos = [{'id': f's{index}', 'title': '', 'plan_items': [], 'created_at': CREATED_AT, 'updated_at': CREATED_AT} for index in range(3)]
+    fake.add('GET', '/api/sessions', httpx.Response(200, json=infos))
+    for index, info in enumerate(infos):
+        message = {'role': 'user', 'content': [{'type': 'text', 'text': f'hi {index}'}], 'created_at': CREATED_AT}
+        fake.add('GET', f'/api/sessions/{info["id"]}/messages', httpx.Response(200, json=[{'seq': 0, 'role': 'user', 'data': message, 'created_at': CREATED_AT}]))
+    client = RQArkDataCloudClient(CloudConfig(True, 'https://cloud.test', 'secret'), transport=httpx.MockTransport(fake.handler))
+
+    try:
+        sessions = await CloudStorage(client).load()
+    finally:
+        await client.aclose()
+
+    assert [session.history[0].content for session in sessions] == ['hi 0', 'hi 1', 'hi 2']

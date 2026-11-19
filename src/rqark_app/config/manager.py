@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
@@ -113,9 +114,8 @@ class ConfigManager:
     async def load(self):
         self.config_path.mkdir(parents=True, exist_ok=True)
         self._load_cloud()
-        await self._load_agents()
-        await self._load_default_agent()
-        await self._load_providers()
+        default_info, _, _ = await asyncio.gather(self._default_agent_info(), self._load_agents(), self._load_providers())
+        self._apply_default_agent(default_info)
 
     async def aclose(self):
         if self.cloud_client is not None:
@@ -172,12 +172,14 @@ class ConfigManager:
             agents.append(_build_agent(created) if created else agent)
         return agents
 
-    async def _load_default_agent(self):
+    async def _default_agent_info(self) -> dict | None:
         if self.cloud_client is None or not self.source:
-            return
-        info = await self.cloud_client.get_agent_default(self.source)
+            return None
+        return await self.cloud_client.get_agent_default(self.source)
+
+    def _apply_default_agent(self, info: dict | None) -> None:
         if info:
-            self.default_agent = self._agent_with_id(info.get('agent_id') or '')
+            self.default_agent = self._agent_with_id(str(info.get('agent_id') or ''))
 
     def _agent_with_id(self, agent_id: str) -> BaseAgent | None:
         for agent in self.agents:
