@@ -233,11 +233,19 @@ async def test_a_conflict_is_retried_once_with_the_fresh_version(model):
 
 
 async def test_an_over_long_state_keeps_the_old_board(model):
-    model.answer = json.dumps({**ANSWER, 'state': 'x' * 2001}, ensure_ascii=False)
+    model.answer = json.dumps({**ANSWER, 'state': 'x' * (writer_module.MAX_STATE_CHARS + 1)}, ensure_ascii=False)
     client = FakeClient()
     await write(client)
     assert client.states == []
     assert len(client.created) == 1
+
+
+async def test_a_state_at_the_ceiling_is_written(model):
+    board = 'x' * writer_module.MAX_STATE_CHARS
+    model.answer = json.dumps({**ANSWER, 'state': board}, ensure_ascii=False)
+    client = FakeClient()
+    await write(client)
+    assert [written['content'] for written in client.states] == [board]
 
 
 async def test_a_blank_state_is_not_written(model):

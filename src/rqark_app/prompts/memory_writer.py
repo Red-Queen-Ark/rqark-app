@@ -2,6 +2,8 @@ from rqark_core.types.prompt import BasePrompt, PromptContext
 
 DEFAULT_USER_NAME = 'User'
 
+STATE_BOARD_MAX_CHARS = 8000
+
 _prompt = """
 You maintain the memory of one user for one agent. You are given the current state board, the user's message, the assistant's final reply, and a summary of the tools the assistant called during the turn. Reply with ONE JSON object and nothing else.
 
@@ -28,7 +30,7 @@ The board answers two questions and nothing else: which projects are being follo
 
 Rules for the board:
 - One item per line, one line per item. An item never continues onto a second line and never nests.
-- 跟進中 holds at most 8 lines, 對話 at most 3. The whole board stays under 2000 characters; when it grows, merge or drop the oldest line.
+- 跟進中 holds at most 8 lines, 對話 at most 3. The whole board stays under {max_chars} characters; when it grows, merge or drop the oldest line.
 - A 跟進中 line is the macro picture: a project, where it stands, and the next move. A branch name, a commit hash, a file path, a function name, or an explanation of why something is the way it is does not belong here; that is what the event log is for.
 - 對話 is one rolling note of what {user_name} and the agent are working through and where they landed. Not a transcript.
 - An open question or a pending choice is not a section of its own: it goes into the next-action half of the line of the project it belongs to.
@@ -63,7 +65,7 @@ class MemoryWritePrompt(BasePrompt):
         self.user_name = user_name
 
     async def get_messages(self, ctx: PromptContext | None = None) -> str | None:
-        return _prompt.replace('{user_name}', self.user_name)
+        return _prompt.replace('{user_name}', self.user_name).replace('{max_chars}', str(STATE_BOARD_MAX_CHARS))
 
     def params(self) -> dict[str, str]:
-        return {'user_name': self.user_name}
+        return {'user_name': self.user_name, 'max_chars': str(STATE_BOARD_MAX_CHARS)}
