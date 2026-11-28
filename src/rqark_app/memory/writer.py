@@ -7,14 +7,14 @@ from rqark_core.types.chat import AssistantMessage, ToolMessage, UserMessage
 
 from rqark_app._app.core import create_core
 from rqark_app.cloud.client import DataCloudError, RQArkDataCloudClient
-from rqark_app.prompts.memory_writer import DEFAULT_USER_NAME, MemoryWritePrompt
+from rqark_app.prompts.memory_writer import DEFAULT_USER_NAME, STATE_BOARD_MAX_CHARS, MemoryWritePrompt
 from rqark_app.provider.manager import ProviderManager
 from rqark_app.tools.context import AGENT_KEY, SESSION_KEY, SOURCE_KEY
 from rqark_app.types.session import Session
 
 logger = logging.getLogger(__name__)
 
-MAX_STATE_CHARS = 2000
+MAX_STATE_CHARS = STATE_BOARD_MAX_CHARS
 MAX_EVENT_CHARS = 200
 SHORT_REPLY_CHARS = 200
 TOOL_NOTE_CHARS = 200
